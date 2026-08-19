@@ -1,5 +1,25 @@
-"""Database access — Supabase client and deal persistence."""
+"""Database access — local JSON store, optional Supabase."""
 
-from backend.db.client import fetch_deal, get_client, save_deal
+from backend.db.client import (
+    delete_watchlist,
+    fetch_deal,
+    find_deal_by_url,
+    get_client,
+    list_deals,
+    list_watchlists,
+    pipeline_stats,
+    save_deal,
+    save_watchlist,
+)
 
-__all__ = ["fetch_deal", "get_client", "save_deal"]
+__all__ = [
+    "delete_watchlist",
+    "fetch_deal",
+    "find_deal_by_url",
+    "get_client",
+    "list_deals",
+    "list_watchlists",
+    "pipeline_stats",
+    "save_deal",
+    "save_watchlist",
+]

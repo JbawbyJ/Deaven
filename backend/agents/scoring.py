@@ -6,9 +6,8 @@ and generates an LLM narrative explaining the score.
 
 from __future__ import annotations
 import logging
+import os
 from typing import Optional
-
-import anthropic
 
 from shared.schemas.deal import (
     DealPayload, DealTier, ScoreComponents,
@@ -76,8 +75,15 @@ class ScoringEngine:
     Generates LLM narrative. Returns updated DealPayload.
     """
 
-    def __init__(self, anthropic_client: Optional[anthropic.AsyncAnthropic] = None):
-        self.client = anthropic_client or anthropic.AsyncAnthropic()
+    def __init__(self, anthropic_client=None):
+        self.client = anthropic_client
+        if self.client is None and os.getenv("ANTHROPIC_API_KEY"):
+            try:
+                import anthropic
+
+                self.client = anthropic.AsyncAnthropic()
+            except Exception as exc:
+                logger.warning("Anthropic client unavailable, using template narratives: %s", exc)
 
     async def run(self, payload: DealPayload) -> DealPayload:
         """Main entry. Mutates and returns payload with score + narrative."""
@@ -168,6 +174,12 @@ class ScoringEngine:
         """Generate LLM deal advisory narrative."""
         if not all([payload.vision_report, payload.risk_report, payload.valuation_report]):
             return f"Score: {payload.deal_score} ({payload.deal_tier}). Some agent data missing — manual review recommended."
+
+        if self.client is None:
+            return (
+                f"Score: {payload.deal_score} ({payload.deal_tier}). "
+                "Template narrative — set ANTHROPIC_API_KEY for LLM write-ups."
+            )
 
         try:
             prompt = build_narrative_prompt(payload)

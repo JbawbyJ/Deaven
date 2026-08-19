@@ -11,13 +11,9 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from backend.agents.scrapers.tcv import TCVScraper
-from backend.agents.scrapers.bat import BaTScraper
-from backend.agents.scrapers.ebay import EbayMotorsScraper
-from backend.agents.scrapers.classic_com import ClassicComMarketplaceScraper
-
 import httpx
 
+from backend.core.settings import scout_backend
 from shared.schemas.deal import (
     DealPayload, DealSource, DealStatus, ListingData, WatchlistFilter
 )
@@ -27,30 +23,25 @@ logger = logging.getLogger(__name__)
 
 # ─── Source Scrapers ──────────────────────────────────────────────────────────
 
-class EbayMotorsScraper:
-    """eBay Motors — Buy It Now and auction listings."""
-
-    SEARCH_URL = "https://www.ebay.com/sch/i.html"
+class LocalCatalogScraper:
+    """
+    In-repo catalog used when SCOUT_BACKEND=local.
+    Same fetch_listings / parse_listing surface as live scrapers.
+    """
 
     async def fetch_listings(self, filters: WatchlistFilter) -> list[dict]:
-        query = " ".join(filters.makes + filters.models)
-        params = {
-            "_nkw":    query,
-            "_sacat":  "6001",   # eBay Motors category
-            "LH_Sold": "0",
-            "_sop":    "10",     # sort by newly listed
-        }
+        from backend.data.catalog import CATALOG, match_filters
 
-        async with httpx.AsyncClient(timeout=20) as client:
-            try:
-                resp = await client.get(self.SEARCH_URL, params=params)
-                resp.raise_for_status()
-                # TODO: parse HTML with BeautifulSoup
-                # Returning stub for now
-                return []
-            except Exception as e:
-                logger.error(f"eBay fetch failed: {e}")
-                return []
+        return [item for item in CATALOG if match_filters(item, filters)]
+
+    def parse_listing(self, raw: dict) -> Optional[ListingData]:
+        from backend.agents.local_pipeline import listing_from_catalog
+
+        try:
+            return listing_from_catalog(raw)
+        except Exception as exc:
+            logger.warning("Catalog parse failed: %s", exc)
+            return None
 
 
 class FacebookMarketplaceScraper:
@@ -136,10 +127,10 @@ class ScoutAgent:
 
    
     SOURCE_MAP = {
-        DealSource.BRING_A_TRAILER: BaTScraper,
-        DealSource.EBAY:            EbayMotorsScraper,
-        DealSource.CLASSIC_COM:     ClassicComMarketplaceScraper,
-        DealSource.TCV:             TCVScraper,
+        DealSource.BRING_A_TRAILER: "bat",
+        DealSource.EBAY:            "ebay",
+        DealSource.CLASSIC_COM:     "classic_com",
+        DealSource.TCV:             "tcv",
     }
 
     def __init__(self, dedup_store: Optional[DeduplicationStore] = None):
@@ -154,6 +145,13 @@ class ScoutAgent:
         Main entry point. Crawls all configured sources for a given filter.
         Returns new, deduplicated DealPayloads.
         """
+        if scout_backend() == "local":
+            from backend.agents.local_pipeline import scout_catalog
+
+            payloads = scout_catalog(filters)
+            logger.info("Scout (local catalog): %d listings", len(payloads))
+            return payloads
+
         target_sources = sources or filters.sources or list(self.SOURCE_MAP.keys())
         tasks = [
             self._fetch_source(source, filters)
@@ -173,13 +171,35 @@ class ScoutAgent:
         logger.info(f"Scout: {len(payloads)} new listings found across {len(target_sources)} sources")
         return payloads
 
+    def _scraper_for(self, source: DealSource):
+        if scout_backend() == "local":
+            return LocalCatalogScraper()
+
+        key = self.SOURCE_MAP[source]
+        if key == "bat":
+            from backend.agents.scrapers.bat import BaTScraper
+
+            return BaTScraper()
+        if key == "ebay":
+            from backend.agents.scrapers.ebay import EbayMotorsScraper
+
+            return EbayMotorsScraper()
+        if key == "classic_com":
+            from backend.agents.scrapers.classic_com import ClassicComMarketplaceScraper
+
+            return ClassicComMarketplaceScraper()
+        if key == "tcv":
+            from backend.agents.scrapers.tcv import TCVScraper
+
+            return TCVScraper()
+        raise KeyError(source)
+
     async def _fetch_source(
         self,
         source: DealSource,
         filters: WatchlistFilter,
     ) -> list[DealPayload]:
-        scraper_cls = self.SOURCE_MAP[source]
-        scraper     = scraper_cls()
+        scraper = self._scraper_for(source)
         raw_listings = await scraper.fetch_listings(filters)
 
         payloads = []
@@ -236,25 +256,21 @@ class ScoutAgent:
 
 async def ingest_url(url: str) -> DealPayload:
     """
-    Manual trigger — user pastes a URL into dashboard.
-    Detects source, scrapes listing, returns initialized payload.
+    Manual trigger — user pastes a URL into the dashboard.
+    Local mode resolves catalog slugs / demo URLs. Live scrapers can
+    replace this without changing the API contract.
     """
-    source = _detect_source(url)
-    # TODO: dispatch to correct scraper based on source
-    # For now return a stub payload
-    return DealPayload(
-        source  = source,
-        url     = url,
-        listing = ListingData(title="Manual ingest pending", price=0),
-        status  = DealStatus.INGESTED,
-    )
+    from backend.agents.local_pipeline import ingest_url as local_ingest
+    from backend.core.settings import pipeline_mode
+
+    if pipeline_mode() == "local" or scout_backend() == "local":
+        return local_ingest(url)
+
+    from backend.agents.local_pipeline import payload_from_url
+
+    return payload_from_url(url)
 
 def _detect_source(url: str) -> DealSource:
-    if "bringatrailer" in url:   return DealSource.BRING_A_TRAILER
-    if "carsandbids"   in url:   return DealSource.CARS_AND_BIDS
-    if "ebay"          in url:   return DealSource.EBAY
-    if "facebook"      in url:   return DealSource.FACEBOOK
-    if "autotrader"    in url:   return DealSource.AUTOTRADER
-    if "hemmings"      in url:   return DealSource.HEMMINGS
-    if "craigslist"    in url:   return DealSource.CRAIGSLIST
-    return DealSource.MANUAL
+    from backend.agents.local_pipeline import detect_source
+
+    return detect_source(url)
