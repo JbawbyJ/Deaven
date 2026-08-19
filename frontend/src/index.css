@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-deaven-border;
+  }
+
+  body {
+    @apply bg-deaven-bg text-zinc-100 font-sans;
+  }
+
+  ::selection {
+    @apply bg-deaven-gold/30 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-deaven-bg;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-deaven-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-600;
+  }
+}
+
+@layer components {
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-deaven-gold/40
+      bg-deaven-gold/10 px-4 py-2 text-sm font-medium text-deaven-gold transition-all
+      hover:border-deaven-gold hover:bg-deaven-gold/20 active:scale-[0.98];
+  }
+
+  .input-dark {
+    @apply w-full rounded-md border border-deaven-border bg-deaven-bg px-3 py-2 text-sm
+      text-zinc-100 placeholder:text-zinc-600 outline-none transition-colors
+      focus:border-deaven-gold/50 focus:ring-1 focus:ring-deaven-gold/30;
+  }
+
+  .panel {
+    @apply rounded-lg border border-deaven-border bg-deaven-surface;
+  }
+}
