@@ -117,8 +117,8 @@ async def health():
 async def ingest_deal(req: IngestURLRequest):
     from backend.agents.scout import ingest_url
 
-    existing = find_deal_by_url(req.url)
     payload = await ingest_url(req.url)
+    existing = find_deal_by_url(payload.url) or find_deal_by_url(req.url)
     if existing is not None:
         payload.deal_id = existing.deal_id
     save_deal(payload)

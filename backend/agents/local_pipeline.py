@@ -269,15 +269,20 @@ def _narrative(payload: DealPayload) -> str:
         risk = ", ".join(payload.risk_report.title_flags)
     elif payload.vision_report and payload.vision_report.flags:
         risk = ", ".join(payload.vision_report.flags)
+    tier = (
+        payload.deal_tier.value
+        if hasattr(payload.deal_tier, "value")
+        else str(payload.deal_tier)
+    )
     action = {
         "fire": "Move now: confirm title, schedule PPI, draft outreach.",
         "strong": "Shortlist it — verify service history before bidding.",
         "watchlist": "Park it on the watchlist and wait for a price move.",
         "pass": "Pass unless the seller drops closer to market.",
         "discard": "Discard — does not clear the bar.",
-    }.get(str(payload.deal_tier), "Review manually.")
+    }.get(tier.lower(), "Review manually.")
     return (
-        f"{str(payload.deal_tier).upper()} — {ymm} at ${listing.price:,.0f} ({vs}). "
+        f"{tier.upper()} — {ymm} at ${listing.price:,.0f} ({vs}). "
         f"Primary risk: {risk}. {action}"
     )
 

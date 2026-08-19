@@ -45,6 +45,14 @@ def test_deal_detail_and_decision(client):
     assert body["listing"]["title"]
     assert body["score_components"]["price_score"] is not None
     assert body["narrative"]
+    assert not body["narrative"].startswith("DEALTIER")
+    assert body["narrative"].split("—")[0].strip() in {
+        "FIRE",
+        "STRONG",
+        "WATCHLIST",
+        "PASS",
+        "DISCARD",
+    }
 
     decision = client.post(f"/deals/{deal_id}/decision", params={"decision": "acquire"})
     assert decision.status_code == 200
