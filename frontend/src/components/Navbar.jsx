@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
 import { Loader2, Radar, Search } from 'lucide-react';
 import { ingestURL } from '../lib/api';
@@ -11,6 +12,7 @@ const NAV = [
 
 export default function Navbar() {
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -22,8 +24,10 @@ export default function Navbar() {
     setMessage(null);
     try {
       const deal = await ingestURL(url.trim());
-      setMessage(`Ingested ${deal.deal_id.slice(0, 8)}…`);
+      setMessage(`Ingested ${deal.title} · ${deal.deal_id.slice(0, 8)}…`);
       setUrl('');
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
     } catch (err) {
       setMessage(err.response?.data?.detail ?? 'Ingest failed');
     } finally {
@@ -76,7 +80,7 @@ export default function Navbar() {
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="Paste listing URL to ingest…"
+              placeholder="Paste listing URL or local://supra-1998"
               className="input-dark pl-9"
             />
           </div>

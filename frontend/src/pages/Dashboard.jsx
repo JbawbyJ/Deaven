@@ -99,8 +99,9 @@ export default function Dashboard() {
           <Zap className="h-8 w-8 text-deaven-gold/50" />
           <h2 className="text-lg font-medium text-zinc-300">No deals yet</h2>
           <p className="max-w-md text-sm text-zinc-500">
-            Paste a listing URL in the navbar to ingest your first deal, or wait
-            for the scout pipeline to surface opportunities.
+            Paste a listing URL or a catalog slug such as{" "}
+            <span className="font-mono text-zinc-400">local://bmw-m3-2003</span>{" "}
+            in the navbar. Live scrapers can replace the local catalog later.
           </p>
         </div>
       )}

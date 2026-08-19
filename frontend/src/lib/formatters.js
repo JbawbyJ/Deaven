@@ -54,6 +54,8 @@ export function formatSource(source) {
     bat: 'Bring a Trailer',
     cab: 'Cars & Bids',
     ebay: 'eBay',
+    classic_com: 'Classic.com',
+    tcv: 'TCV',
     facebook: 'Facebook',
     autotrader: 'AutoTrader',
     hemmings: 'Hemmings',

@@ -1,85 +1,113 @@
 """
-backend/db/client.py
-Supabase client for persisting DealPayload records.
+Deal persistence.
 
-Expected `deals` table (create in Supabase SQL editor):
-
-    CREATE TABLE deals (
-        deal_id TEXT PRIMARY KEY,
-        payload JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
+Default: local JSON store (no Supabase keys).
+Optional: set STORE_BACKEND=supabase plus SUPABASE_URL/SUPABASE_KEY.
 """
 
 from __future__ import annotations
 
 import logging
-import os
-from pathlib import Path
 from typing import Optional
 
-from dotenv import load_dotenv
-from supabase import Client, create_client
-
-from shared.schemas.deal import DealPayload
+from backend.core.settings import store_backend, supabase_configured
+from shared.schemas.deal import DealPayload, WatchlistFilter
 
 logger = logging.getLogger(__name__)
 
 TABLE_NAME = "deals"
 
-_backend_dir = Path(__file__).resolve().parents[1]
-load_dotenv(_backend_dir / ".env")
-load_dotenv(_backend_dir.parent / ".env", override=False)
 
-_client: Optional[Client] = None
+def _use_supabase() -> bool:
+    return store_backend() == "supabase" and supabase_configured()
 
 
-def get_client() -> Client:
-    """Return a cached Supabase client (created on first call)."""
-    global _client
-    if _client is not None:
-        return _client
-
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
-    if not url or not key:
+def get_client():
+    """Return a cached Supabase client. Raises if keys are missing."""
+    if not supabase_configured():
         raise RuntimeError(
-            "SUPABASE_URL and SUPABASE_KEY must be set in .env "
-            "(see README Environment Variables)."
+            "SUPABASE_URL and SUPABASE_KEY must be set to use STORE_BACKEND=supabase."
         )
 
-    _client = create_client(url, key)
-    return _client
+    from backend.db import supabase_client
 
-
-def _row_from_payload(payload: DealPayload) -> dict:
-    return {
-        "deal_id": payload.deal_id,
-        "payload": payload.model_dump(mode="json"),
-    }
+    return supabase_client.get_client()
 
 
 def save_deal(payload: DealPayload) -> DealPayload:
-    """Insert or update a deal row keyed by deal_id."""
-    row = _row_from_payload(payload)
-    get_client().table(TABLE_NAME).upsert(row, on_conflict="deal_id").execute()
-    logger.debug("Saved deal %s to Supabase", payload.deal_id)
-    return payload
+    if _use_supabase():
+        from backend.db import supabase_client
+
+        return supabase_client.save_deal(payload)
+    from backend.db.store import get_local_store
+
+    return get_local_store().save_deal(payload)
 
 
 def fetch_deal(deal_id: str) -> Optional[DealPayload]:
-    """Fetch a deal by ID, or None if not found."""
-    response = (
-        get_client()
-        .table(TABLE_NAME)
-        .select("payload")
-        .eq("deal_id", deal_id)
-        .maybe_single()
-        .execute()
-    )
-    if not response.data:
+    if _use_supabase():
+        from backend.db import supabase_client
+
+        return supabase_client.fetch_deal(deal_id)
+    from backend.db.store import get_local_store
+
+    return get_local_store().get_deal(deal_id)
+
+
+def find_deal_by_url(url: str) -> Optional[DealPayload]:
+    if _use_supabase():
         return None
-    return DealPayload.model_validate(response.data["payload"])
+    from backend.db.store import get_local_store
+
+    return get_local_store().find_by_url(url)
 
 
-get_deal = fetch_deal  # backwards-compatible alias
+def list_deals(
+    tier: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 50,
+) -> list[DealPayload]:
+    if _use_supabase():
+        from backend.db import supabase_client
+
+        return supabase_client.list_deals(tier=tier, status=status, limit=limit)
+    from backend.db.store import get_local_store
+
+    return get_local_store().list_deals(tier=tier, status=status, limit=limit)
+
+
+def pipeline_stats() -> dict:
+    if _use_supabase():
+        from backend.db import supabase_client
+
+        return supabase_client.pipeline_stats()
+    from backend.db.store import get_local_store
+
+    return get_local_store().pipeline_stats()
+
+
+def list_watchlists() -> list[WatchlistFilter]:
+    if _use_supabase():
+        return []
+    from backend.db.store import get_local_store
+
+    return get_local_store().list_watchlists()
+
+
+def save_watchlist(item: WatchlistFilter) -> WatchlistFilter:
+    if _use_supabase():
+        return item
+    from backend.db.store import get_local_store
+
+    return get_local_store().save_watchlist(item)
+
+
+def delete_watchlist(filter_id: str) -> bool:
+    if _use_supabase():
+        return False
+    from backend.db.store import get_local_store
+
+    return get_local_store().delete_watchlist(filter_id)
+
+
+get_deal = fetch_deal

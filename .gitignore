@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Local MVP JSON store
+backend/data/local_store.json
+backend/data/*.json.tmp
+
 # Python
 __pycache__/
 *.py[cod]
