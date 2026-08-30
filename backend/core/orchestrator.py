@@ -11,17 +11,17 @@ import asyncio
 import logging
 from typing import Literal, Optional
 
-from langgraph.graph import StateGraph, END
-
 from shared.schemas.deal import DealPayload, DealStatus, DealTier, WatchlistFilter
-from backend.agents.scout     import ScoutAgent
-from backend.agents.vision    import VisionAgent
-from backend.agents.risk      import RiskAgent
-from backend.agents.valuation import ValuationAgent
-from backend.agents.scoring   import ScoringEngine
-from backend.db.client        import save_deal
+from backend.agents.scout import ScoutAgent
+from backend.core.settings import pipeline_mode, scout_backend
+from backend.db.client import find_deal_by_url, save_deal
 
 logger = logging.getLogger(__name__)
+
+
+def _use_local_pipeline() -> bool:
+    """Skip LangGraph / live Vision / Playwright when running the local MVP."""
+    return pipeline_mode() == "local" or scout_backend() == "local"
 
 
 # ─── Node Functions ───────────────────────────────────────────────────────────
@@ -68,6 +68,10 @@ async def parallel_agents_node(payload: DealPayload) -> DealPayload:
     """
     payload.status = DealStatus.SCORING
 
+    from backend.agents.risk import RiskAgent
+    from backend.agents.valuation import ValuationAgent
+    from backend.agents.vision import VisionAgent
+
     vision_agent    = VisionAgent()
     risk_agent      = RiskAgent()
     valuation_agent = ValuationAgent()
@@ -112,6 +116,8 @@ async def parallel_agents_node(payload: DealPayload) -> DealPayload:
 
 async def scoring_node(payload: DealPayload) -> DealPayload:
     """Runs scoring engine. Computes composite score and narrative."""
+    from backend.agents.scoring import ScoringEngine
+
     engine = ScoringEngine()
     payload = await engine.run(payload)
     payload.status = DealStatus.SCORED
@@ -198,6 +204,8 @@ def build_deal_graph():
     Constructs and compiles the LangGraph deal pipeline.
     Returns a compiled graph ready to invoke with a DealPayload.
     """
+    from langgraph.graph import END, StateGraph
+
     graph = StateGraph(DealPayload)
 
     # Register nodes
@@ -247,12 +255,22 @@ class DealOrchestrator:
     """
 
     def __init__(self):
-        self.graph = build_deal_graph()
         self.scout = ScoutAgent()
+        self._graph = None
+
+    @property
+    def graph(self):
+        if self._graph is None:
+            self._graph = build_deal_graph()
+        return self._graph
 
     async def process_deal(self, payload: DealPayload) -> DealPayload:
         """Run a single DealPayload through the full pipeline."""
         try:
+            if _use_local_pipeline():
+                from backend.agents.local_pipeline import score_payload
+
+                return score_payload(payload)
             result = await self.graph.ainvoke(payload)
             return result
         except Exception as e:
@@ -285,6 +303,11 @@ class DealOrchestrator:
         if not new_listings:
             logger.info("Scout cycle: no new listings found")
             return []
+
+        for payload in new_listings:
+            existing = find_deal_by_url(payload.url)
+            if existing is not None:
+                payload.deal_id = existing.deal_id
 
         logger.info(f"Scout cycle: {len(new_listings)} new listings → pipeline")
         results = await self.process_batch(new_listings)

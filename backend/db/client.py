@@ -94,6 +94,14 @@ def list_watchlists() -> list[WatchlistFilter]:
     return get_local_store().list_watchlists()
 
 
+def get_watchlist(filter_id: str) -> Optional[WatchlistFilter]:
+    if _use_supabase():
+        return None
+    from backend.db.store import get_local_store
+
+    return get_local_store().get_watchlist(filter_id)
+
+
 def save_watchlist(item: WatchlistFilter) -> WatchlistFilter:
     if _use_supabase():
         return item

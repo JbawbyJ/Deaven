@@ -172,20 +172,29 @@ def heuristic_vision(payload: DealPayload) -> VisionReport:
     )
 
 
+def _risk_blob(payload: DealPayload) -> str:
+    listing = payload.listing
+    parts = [listing.title or "", listing.description or "", payload.url or ""]
+    return " ".join(parts).lower().replace("-", " ").replace("_", " ")
+
+
 def heuristic_risk(payload: DealPayload) -> RiskReport:
     hints = _catalog_hints(payload)
     score = float(hints.get("provenance_hint") or 65.0)
-    title_lower = payload.listing.title.lower()
+    blob = _risk_blob(payload)
     flags: list[str] = []
     auto_disqualify = False
     reason = None
-    for token, label in (
-        ("salvage", "Salvage title — auto-disqualified"),
-        ("flood", "Flood damage reported — auto-disqualified"),
-        ("parts only", "Parts-only listing — auto-disqualified"),
+    for token, flag, label in (
+        ("salvage", "salvage", "Salvage title — auto-disqualified"),
+        ("flood", "flood", "Flood damage reported — auto-disqualified"),
+        ("parts only", "parts_only", "Parts-only listing — auto-disqualified"),
+        ("odometer rollback", "odometer_rollback", "Odometer rollback detected — auto-disqualified"),
+        ("rolled miles", "odometer_rollback", "Odometer rollback detected — auto-disqualified"),
+        ("cluster rollback", "odometer_rollback", "Odometer rollback detected — auto-disqualified"),
     ):
-        if token in title_lower:
-            flags.append(token.replace(" ", "_"))
+        if token in blob:
+            flags.append(flag)
             auto_disqualify = True
             reason = label
             score = 0

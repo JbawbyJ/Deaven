@@ -35,6 +35,39 @@ _YEAR_MAKE_MODEL_RE = re.compile(
 )
 
 
+def finding_keywords(filters: WatchlistFilter) -> str:
+    """
+    Finding API keywords for a watchlist.
+
+    E46 M3 hunts (BMW + M3, years overlapping 1999–2006) get a dedicated
+    "E46" token so chassis search is not just year numbers.
+    """
+    parts: list[str] = []
+    makes = list(filters.makes or [])
+    models = list(filters.models or [])
+    parts.extend(makes)
+    parts.extend(models)
+    blob = " ".join(makes + models).lower()
+    year_min = filters.year_min
+    year_max = filters.year_max
+    e46 = (
+        "bmw" in blob
+        and "m3" in blob
+        and (year_min is None or year_min <= 2006)
+        and (year_max is None or year_max >= 1999)
+        and (year_min is None or year_min >= 1998)
+        and (year_max is None or year_max <= 2007)
+    )
+    if e46:
+        parts.append("E46")
+    else:
+        if year_min:
+            parts.append(str(year_min))
+        if year_max and year_max != year_min:
+            parts.append(str(year_max))
+    return " ".join(parts).strip()
+
+
 def extract_year_make_model(title: str) -> tuple[Optional[int], Optional[str], Optional[str]]:
     """
     Parse vehicle year, make, and model from a listing title.
@@ -180,16 +213,7 @@ class EbayMotorsScraper:
         return str(url) if url else None
 
     def _build_keywords(self, filters: WatchlistFilter) -> str:
-        parts: list[str] = []
-        if filters.makes:
-            parts.extend(filters.makes)
-        if filters.models:
-            parts.extend(filters.models)
-        if filters.year_min:
-            parts.append(str(filters.year_min))
-        if filters.year_max and filters.year_max != filters.year_min:
-            parts.append(str(filters.year_max))
-        return " ".join(parts).strip()
+        return finding_keywords(filters)
 
     def _build_request_params(
         self,

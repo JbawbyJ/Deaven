@@ -31,6 +31,15 @@ def scout_backend() -> str:
     return _env("SCOUT_BACKEND", "local").lower()
 
 
+def scout_scheduler_enabled() -> bool:
+    """Background scout loop. Default off so TestClient/lifespan cannot hang."""
+    return _env("SCOUT_SCHEDULER", "").lower() in {"1", "true", "yes", "on"}
+
+
+def alert_webhook_url() -> str:
+    return _env("ALERT_WEBHOOK_URL")
+
+
 def store_backend() -> str:
     """local = JSON file. supabase = remote deals table."""
     configured = _env("STORE_BACKEND", "local").lower()

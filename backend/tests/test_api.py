@@ -10,6 +10,7 @@ SWAGGER_PATHS = {
     "/watchlists",
     "/watchlists/{filter_id}",
     "/stats/pipeline",
+    "/scout/run",
 }
 
 
@@ -19,6 +20,11 @@ def test_health(client):
     body = response.json()
     assert body["status"] == "ok"
     assert body["pipeline_mode"] == "local"
+    assert body["scout_backend"] == "local"
+    assert body["scheduler_enabled"] is False
+    assert "last_scout" in body
+    assert body["last_scout"]["filters"] == 0
+    assert body["last_scout"]["new_listings"] == 0
 
 
 def test_openapi_matches_swagger_contract(client):
@@ -121,3 +127,69 @@ def test_watchlists_round_trip(client):
     assert deleted.status_code == 200
     names = {item["name"] for item in client.get("/watchlists").json()}
     assert "FD RX-7" not in names
+
+
+def test_scout_run_local_produces_deals(client):
+    watchlists = client.get("/watchlists").json()
+    hunt = next(item for item in watchlists if item["name"] == "E46 M3 Hunt")
+
+    response = client.post("/scout/run", json={})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ran"] >= 1
+    assert body["new_listings"] >= 1
+    assert hunt["filter_id"] in body["filter_ids"]
+    assert isinstance(body["tiers"], dict)
+    assert body["tiers"]
+
+    deals = client.get("/deals").json()
+    assert deals
+    assert any(deal["make"] == "BMW" and deal["model"] == "M3" for deal in deals)
+
+    targeted = client.post("/scout/run", json={"filter_id": hunt["filter_id"]})
+    assert targeted.status_code == 200
+    targeted_body = targeted.json()
+    assert targeted_body["ran"] == 1
+    assert targeted_body["filter_ids"] == [hunt["filter_id"]]
+    assert targeted_body["new_listings"] >= 1
+
+    health = client.get("/health").json()
+    assert health["scout_backend"] == "local"
+    assert health["scheduler_enabled"] is False
+    assert health["last_scout"]["filters"] == 1
+    assert health["last_scout"]["new_listings"] == targeted_body["new_listings"]
+    assert health["last_scout"]["at"]
+
+
+def test_odometer_rollback_hard_zero(client):
+    response = client.post(
+        "/deals/ingest",
+        json={"url": "https://bringatrailer.com/listing/2002-bmw-m3-odometer-rollback"},
+    )
+    assert response.status_code == 200
+    deal_id = response.json()["deal_id"]
+    detail = client.get(f"/deals/{deal_id}").json()
+    assert detail["deal_score"] == 0
+    assert detail["risk_report"]["auto_disqualify"] is True
+    assert "odometer_rollback" in detail["risk_report"]["title_flags"]
+
+
+def test_outcome_patch_records_sale(client):
+    deals = client.get("/deals").json()
+    deal_id = deals[0]["deal_id"]
+    response = client.patch(
+        f"/deals/{deal_id}/outcome",
+        json={
+            "purchase_price": 20000,
+            "sale_price": 28000,
+            "days_to_sell": 12,
+            "recon_actual": 1500,
+            "lemon": False,
+        },
+    )
+    assert response.status_code == 200
+    detail = client.get(f"/deals/{deal_id}").json()
+    assert detail["outcome_purchase_price"] == 20000
+    assert detail["outcome_sale_price"] == 28000
+    assert detail["status"] == "sold"
+    assert detail["outcome_margin_actual"] is not None

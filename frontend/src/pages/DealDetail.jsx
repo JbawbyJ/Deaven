@@ -12,7 +12,7 @@ import {
 import AgentReport from '../components/AgentReport';
 import ScoreBadge from '../components/ScoreBadge';
 import TierBadge from '../components/TierBadge';
-import { getDeal, recordDecision } from '../lib/api';
+import { getDeal, patchOutcome, recordDecision } from '../lib/api';
 import {
   formatDaysLeft,
   formatMargin,
@@ -67,6 +67,14 @@ export default function DealDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const [decisionMsg, setDecisionMsg] = useState(null);
+  const [outcome, setOutcome] = useState({
+    purchase_price: '',
+    sale_price: '',
+    days_to_sell: '',
+    recon_actual: '',
+    lemon: false,
+  });
+  const [outcomeMsg, setOutcomeMsg] = useState(null);
 
   const { data: deal, isLoading, isError } = useQuery({
     queryKey: ['deal', id],
@@ -79,6 +87,24 @@ export default function DealDetail() {
     onSuccess: (_, decision) => {
       setDecisionMsg(`Recorded: ${decision}`);
       queryClient.invalidateQueries({ queryKey: ['deal', id] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+
+  const outcomeMutation = useMutation({
+    mutationFn: () =>
+      patchOutcome(id, {
+        purchase_price: outcome.purchase_price === '' ? null : Number(outcome.purchase_price),
+        sale_price: outcome.sale_price === '' ? null : Number(outcome.sale_price),
+        days_to_sell: outcome.days_to_sell === '' ? null : Number(outcome.days_to_sell),
+        recon_actual: outcome.recon_actual === '' ? null : Number(outcome.recon_actual),
+        lemon: Boolean(outcome.lemon),
+      }),
+    onSuccess: () => {
+      setOutcomeMsg('Outcome saved');
+      queryClient.invalidateQueries({ queryKey: ['deal', id] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
     },
   });
 
@@ -231,6 +257,72 @@ export default function DealDetail() {
         </div>
         {decisionMsg && (
           <p className="mt-3 font-mono text-xs text-zinc-500">{decisionMsg}</p>
+        )}
+      </section>
+
+      <section className="panel p-5">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-deaven-gold">
+          Sale outcome
+        </h2>
+        <form
+          className="grid gap-3 sm:grid-cols-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            outcomeMutation.mutate();
+          }}
+        >
+          <label>
+            <span className="mb-1 block text-xs text-zinc-500">Purchase price</span>
+            <input
+              className="input-dark"
+              type="number"
+              value={outcome.purchase_price}
+              onChange={(e) => setOutcome((o) => ({ ...o, purchase_price: e.target.value }))}
+            />
+          </label>
+          <label>
+            <span className="mb-1 block text-xs text-zinc-500">Sale price</span>
+            <input
+              className="input-dark"
+              type="number"
+              value={outcome.sale_price}
+              onChange={(e) => setOutcome((o) => ({ ...o, sale_price: e.target.value }))}
+            />
+          </label>
+          <label>
+            <span className="mb-1 block text-xs text-zinc-500">Days to sell</span>
+            <input
+              className="input-dark"
+              type="number"
+              value={outcome.days_to_sell}
+              onChange={(e) => setOutcome((o) => ({ ...o, days_to_sell: e.target.value }))}
+            />
+          </label>
+          <label>
+            <span className="mb-1 block text-xs text-zinc-500">Recon actual</span>
+            <input
+              className="input-dark"
+              type="number"
+              value={outcome.recon_actual}
+              onChange={(e) => setOutcome((o) => ({ ...o, recon_actual: e.target.value }))}
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-zinc-400">
+            <input
+              type="checkbox"
+              checked={outcome.lemon}
+              onChange={(e) => setOutcome((o) => ({ ...o, lemon: e.target.checked }))}
+            />
+            Lemon
+          </label>
+          <div className="sm:col-span-2">
+            <button type="submit" className="btn-gold" disabled={outcomeMutation.isPending}>
+              {outcomeMutation.isPending ? 'Saving…' : 'Save outcome'}
+            </button>
+          </div>
+        </form>
+        {outcomeMsg && (
+          <p className="mt-3 font-mono text-xs text-zinc-500">{outcomeMsg}</p>
         )}
       </section>
     </div>

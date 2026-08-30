@@ -1,5 +1,6 @@
 import { Flame, Gauge, TrendingUp, Zap } from 'lucide-react';
 import DealCard from '../components/DealCard';
+import ScoutRunBar from '../components/ScoutRunBar';
 import StatCard from '../components/StatCard';
 import { formatMargin, formatScore } from '../lib/formatters';
 import { useDeals } from '../hooks/useDeals';
@@ -21,17 +22,18 @@ export default function Dashboard() {
   const { data: stats = {} } = useStats();
   const { data: deals = [], isLoading, isError } = useDeals(activeTier);
 
-  const todayCount = deals.length || stats.total_ingested || 0;
+  const todayCount = stats.total_ingested ?? deals.length ?? 0;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 lg:px-6">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-zinc-100">Deal Feed</h1>
           <p className="text-sm text-zinc-500">
             Live pipeline · refreshes every 30s
           </p>
         </div>
+        <ScoutRunBar />
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -99,9 +101,9 @@ export default function Dashboard() {
           <Zap className="h-8 w-8 text-deaven-gold/50" />
           <h2 className="text-lg font-medium text-zinc-300">No deals yet</h2>
           <p className="max-w-md text-sm text-zinc-500">
-            Paste a listing URL or a catalog slug such as{" "}
+            Run scout to score the E46 hunt, or paste a listing URL /{" "}
             <span className="font-mono text-zinc-400">local://bmw-m3-2003</span>{" "}
-            in the navbar. Live scrapers can replace the local catalog later.
+            in the navbar.
           </p>
         </div>
       )}

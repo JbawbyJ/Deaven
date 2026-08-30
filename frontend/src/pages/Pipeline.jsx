@@ -1,4 +1,5 @@
 import { useStats } from '../hooks/useStats';
+import ScoutRunBar from '../components/ScoutRunBar';
 import StatCard from '../components/StatCard';
 import { formatMargin, formatScore } from '../lib/formatters';
 
@@ -7,9 +8,12 @@ export default function Pipeline() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 lg:px-6">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-100">Pipeline</h1>
-        <p className="text-sm text-zinc-500">Aggregate scoring pipeline metrics</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-100">Pipeline</h1>
+          <p className="text-sm text-zinc-500">Aggregate scoring pipeline metrics</p>
+        </div>
+        <ScoutRunBar />
       </div>
 
       {isLoading ? (

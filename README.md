@@ -53,10 +53,11 @@ Open http://localhost:5173
 
 ### 3. Walk the core flow
 
-1. **Feed** — seeded deals with scores/tiers (Fire / Strong / Watch / Pass).
-2. **Detail** — click a card for score breakdown, narrative, and agent reports.
-3. **Ingest** — paste `local://supra-1998` (or any catalog URL) in the navbar. The deal is scored immediately and the feed refreshes.
-4. **Watchlist / Pipeline** — create a saved search; pipeline totals come from the same store.
+1. **Feed** — seeded deals with scores/tiers (Fire / Strong / Watch / Pass). Fire count comes from `GET /stats/pipeline`.
+2. **Run scout** — Dashboard and Pipeline call `POST /scout/run` and show `last_scout` from `/health`. Scheduler stays opt-in (`SCOUT_SCHEDULER`).
+3. **Detail** — score breakdown, narrative, acquire/pass, and sale outcome (`PATCH /deals/{id}/outcome`).
+4. **Ingest** — paste `local://supra-1998` (or any catalog URL) in the navbar. The deal is scored immediately and the feed refreshes.
+5. **Watchlist / Pipeline** — create a saved search; pipeline totals come from the same store.
 
 Catalog slugs accepted by `POST /deals/ingest`:
 
@@ -135,4 +136,4 @@ shared/
 
 ## Swapping the stub scout
 
-`backend/agents/scout.py` already has the live scraper map. Set `SCOUT_BACKEND=live` (and install `requirements-full.txt` plus source keys) to use BaT/eBay/Classic.com/TCV. The dashboard and `/deals*` contract do not change.
+`backend/agents/scout.py` already has the live scraper map. Set `SCOUT_BACKEND=live` (and install `requirements-full.txt` plus source keys) to use BaT/eBay/Classic.com/TCV. eBay Finding keywords for the seeded BMW M3 2001–2006 hunt include **E46**. BaT / Classic.com / TCV failures are isolated — one source cannot fail the cycle. No Cloudflare stealth. The dashboard and `/deals*` contract do not change.

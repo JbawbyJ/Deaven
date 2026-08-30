@@ -45,4 +45,20 @@ export async function recordDecision(id, decision) {
   return data;
 }
 
+export async function patchOutcome(id, payload) {
+  const { data } = await api.patch(`/deals/${id}/outcome`, payload);
+  return data;
+}
+
+export async function getHealth() {
+  const { data } = await api.get('/health');
+  return data;
+}
+
+export async function runScout(filterId) {
+  const body = filterId ? { filter_id: filterId } : {};
+  const { data } = await api.post('/scout/run', body);
+  return data;
+}
+
 export default api;

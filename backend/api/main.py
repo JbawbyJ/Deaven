@@ -12,10 +12,13 @@ Contract matches `Deaven API - Swagger UI.pdf`:
   GET/POST /watchlists
   DELETE /watchlists/{filter_id}
   GET  /stats/pipeline
+  POST /scout/run
 """
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -26,15 +29,23 @@ _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from fastapi import FastAPI, HTTPException
+import httpx
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from backend.core.settings import cors_origins, pipeline_mode
+from backend.core.settings import (
+    alert_webhook_url,
+    cors_origins,
+    pipeline_mode,
+    scout_backend,
+    scout_scheduler_enabled,
+)
 from backend.db.client import (
     delete_watchlist as remove_watchlist,
     fetch_deal,
     find_deal_by_url,
+    get_watchlist,
     list_deals as fetch_deals,
     list_watchlists as fetch_watchlists,
     pipeline_stats as fetch_pipeline_stats,
@@ -43,15 +54,33 @@ from backend.db.client import (
 )
 from shared.schemas.deal import DealPayload, DealStatus, WatchlistFilter
 
+logger = logging.getLogger(__name__)
+
+last_scout = {"at": None, "filters": 0, "new_listings": 0, "tiers": {}}
+
 
 # ─── App Lifecycle ────────────────────────────────────────────────────────────
+
+def _reset_last_scout() -> None:
+    last_scout.update({"at": None, "filters": 0, "new_listings": 0, "tiers": {}})
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Touch the store so demo deals exist before the first request.
+    _reset_last_scout()
     fetch_deals(limit=1)
     print("Deaven API starting...")
+    scheduler_task = None
+    if scout_scheduler_enabled():
+        scheduler_task = asyncio.create_task(_scheduler_loop())
     yield
+    if scheduler_task is not None:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
     print("Deaven API shutting down...")
 
 
@@ -85,6 +114,10 @@ class OutcomeUpdateRequest(BaseModel):
     human_decision: Optional[str] = None
 
 
+class ScoutRunRequest(BaseModel):
+    filter_id: Optional[str] = None
+
+
 class DealSummary(BaseModel):
     deal_id: str
     source: str
@@ -110,6 +143,9 @@ async def health():
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
         "pipeline_mode": pipeline_mode(),
+        "scout_backend": scout_backend(),
+        "last_scout": dict(last_scout),
+        "scheduler_enabled": scout_scheduler_enabled(),
     }
 
 
@@ -202,6 +238,18 @@ async def pipeline_stats():
     return fetch_pipeline_stats()
 
 
+@app.post("/scout/run")
+async def run_scout(req: ScoutRunRequest = Body(default_factory=ScoutRunRequest)):
+    if req.filter_id:
+        watchlist = get_watchlist(req.filter_id)
+        if watchlist is None:
+            raise HTTPException(status_code=404, detail="Watchlist not found")
+        filters = [watchlist]
+    else:
+        filters = [item for item in fetch_watchlists() if item.active]
+    return await _execute_scout(filters)
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _require_deal(deal_id: str) -> DealPayload:
@@ -209,6 +257,101 @@ def _require_deal(deal_id: str) -> DealPayload:
     if deal is None:
         raise HTTPException(status_code=404, detail="Deal not found")
     return deal
+
+
+def _tier_key(value) -> str:
+    if value is None:
+        return "unknown"
+    return value.value if hasattr(value, "value") else str(value)
+
+
+def _tier_counts(payloads: list[DealPayload]) -> dict[str, int]:
+    tiers: dict[str, int] = {}
+    for payload in payloads:
+        key = _tier_key(payload.deal_tier)
+        tiers[key] = tiers.get(key, 0) + 1
+    return tiers
+
+
+async def _alert_hot_deals(payloads: list[DealPayload]) -> None:
+    webhook = alert_webhook_url()
+    for payload in payloads:
+        tier = _tier_key(payload.deal_tier).lower()
+        if tier not in {"fire", "strong"}:
+            continue
+        listing = payload.listing
+        logger.info(
+            "Fire/Strong alert: %s %s — %s %s %s @ $%s (%s)",
+            tier,
+            payload.deal_id,
+            listing.year,
+            listing.make,
+            listing.model,
+            listing.price,
+            payload.url,
+        )
+        if not webhook:
+            continue
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(
+                    webhook,
+                    json={
+                        "deal_id": payload.deal_id,
+                        "tier": tier,
+                        "score": payload.deal_score,
+                        "title": listing.title,
+                        "url": payload.url,
+                    },
+                )
+        except Exception:
+            logger.debug("Alert webhook failed for %s", payload.deal_id, exc_info=True)
+
+
+async def _execute_scout(filters: list[WatchlistFilter]) -> dict:
+    from backend.core.orchestrator import DealOrchestrator
+
+    orchestrator = DealOrchestrator()
+    all_payloads: list[DealPayload] = []
+    filter_ids: list[str] = []
+    for watchlist in filters:
+        payloads = await orchestrator.run_scout_cycle(watchlist)
+        for payload in payloads:
+            existing = find_deal_by_url(payload.url)
+            if existing is not None:
+                payload.deal_id = existing.deal_id
+            save_deal(payload)
+        await _alert_hot_deals(payloads)
+        all_payloads.extend(payloads)
+        filter_ids.append(watchlist.filter_id)
+
+    tiers = _tier_counts(all_payloads)
+    last_scout.update(
+        {
+            "at": datetime.utcnow().isoformat(),
+            "filters": len(filters),
+            "new_listings": len(all_payloads),
+            "tiers": tiers,
+        }
+    )
+    return {
+        "ran": len(filters),
+        "new_listings": len(all_payloads),
+        "tiers": tiers,
+        "filter_ids": filter_ids,
+    }
+
+
+async def _scheduler_loop(interval_seconds: int = 900) -> None:
+    while True:
+        try:
+            active = [item for item in fetch_watchlists() if item.active]
+            await _execute_scout(active)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Scheduled scout cycle failed")
+        await asyncio.sleep(interval_seconds)
 
 
 def _to_summary(p: DealPayload) -> DealSummary:

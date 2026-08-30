@@ -118,6 +118,25 @@ class DeduplicationStore:
 
 # ─── Scout Agent ──────────────────────────────────────────────────────────────
 
+def select_sources(
+    filters: WatchlistFilter,
+    sources: Optional[list[DealSource]] = None,
+) -> list[DealSource]:
+    """
+    Resolve which live scrapers to run.
+
+    Empty sources (live mode) must not silently skip — fall back to SOURCE_MAP.
+    If sources are set, intersect with keys we actually know how to crawl.
+    Local catalog mode ignores this list and still uses CATALOG.
+    """
+    available = list(ScoutAgent.SOURCE_MAP.keys())
+    requested = list(sources) if sources else list(filters.sources or [])
+    if not requested:
+        return available
+    allowed = set(available)
+    return [source for source in requested if source in allowed]
+
+
 class ScoutAgent:
     """
     Main Scout Agent.
@@ -152,11 +171,14 @@ class ScoutAgent:
             logger.info("Scout (local catalog): %d listings", len(payloads))
             return payloads
 
-        target_sources = sources or filters.sources or list(self.SOURCE_MAP.keys())
+        target_sources = select_sources(filters, sources)
+        if not target_sources:
+            logger.warning("Scout: no crawlable sources selected for filter '%s'", filters.name)
+            return []
+
         tasks = [
             self._fetch_source(source, filters)
             for source in target_sources
-            if source in self.SOURCE_MAP
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -199,8 +221,12 @@ class ScoutAgent:
         source: DealSource,
         filters: WatchlistFilter,
     ) -> list[DealPayload]:
-        scraper = self._scraper_for(source)
-        raw_listings = await scraper.fetch_listings(filters)
+        try:
+            scraper = self._scraper_for(source)
+            raw_listings = await scraper.fetch_listings(filters)
+        except Exception as exc:
+            logger.error("Source %s failed: %s", source, exc)
+            return []
 
         payloads = []
         for raw in raw_listings:
@@ -208,9 +234,16 @@ class ScoutAgent:
             if not listing:
                 continue
 
-            url = raw.get("url", raw.get("link", ""))
+            url = raw.get("url") or raw.get("link") or ""
+            if hasattr(scraper, "extract_url"):
+                url = scraper.extract_url(raw) or url
             if not url:
                 continue
+            images = raw.get("images") or []
+            if hasattr(scraper, "extract_images"):
+                extracted = scraper.extract_images(raw)
+                if extracted:
+                    images = extracted
 
             # Skip if already seen at this price
             if self.dedup.is_seen(url, listing.price):
@@ -226,7 +259,7 @@ class ScoutAgent:
                 source   = source,
                 url      = url,
                 listing  = listing,
-                images   = raw.get("images", []),
+                images   = images,
                 status   = DealStatus.INGESTED,
             )
             payloads.append(payload)

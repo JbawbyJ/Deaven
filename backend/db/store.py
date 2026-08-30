@@ -111,6 +111,9 @@ class LocalDealStore:
             self._persist()
         return item
 
+    def get_watchlist(self, filter_id: str) -> Optional[WatchlistFilter]:
+        return self._watchlists.get(filter_id)
+
     def list_watchlists(self) -> list[WatchlistFilter]:
         return list(self._watchlists.values())
 
