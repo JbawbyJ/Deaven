@@ -332,7 +332,14 @@ def test_terms_keep_html_sources_parser_only():
         assert clock.slept == []
 
 
-def test_live_fetch_list_is_the_browse_api():
+def test_live_fetch_list_is_the_browse_api(monkeypatch):
+    for name in (
+        "LICENSED_FEED_BASE_URL",
+        "LICENSED_FEED_API_KEY",
+        "LICENSED_FEED_XML_URL",
+        "LICENSED_FEED_XML_PATH",
+    ):
+        monkeypatch.delenv(name, raising=False)
     policies = live_fetch_policies()
     assert policies == [ebay_browse.POLICY]
     assert ebay_browse.LIVE_FETCH_ALLOWED is True
