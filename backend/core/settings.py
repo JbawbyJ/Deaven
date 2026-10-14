@@ -10,6 +10,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from shared.vin import vpic_enabled
+
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_DIR.parent
 
@@ -73,3 +75,8 @@ def cors_origins() -> list[str]:
 
 def supabase_configured() -> bool:
     return bool(_env("SUPABASE_URL") and _env("SUPABASE_KEY"))
+
+
+def vin_vpic_enabled() -> bool:
+    """Optional public NHTSA vPIC decode. Off by default. No API key."""
+    return vpic_enabled()

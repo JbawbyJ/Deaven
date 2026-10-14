@@ -8,8 +8,10 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import uuid
+
+from shared.vin import normalize_vin
 
 
 # ─── Enums ────────────────────────────────────────────────────────────────────
@@ -73,6 +75,21 @@ class ListingData(BaseModel):
     color_int:    Optional[str]    = None
     transmission: Optional[str]    = None
     drivetrain:   Optional[str]    = None
+
+    @field_validator("vin", mode="before")
+    @classmethod
+    def normalize_vin_field(cls, value):
+        """Store a canonical VIN. Blank or unusable input becomes None.
+
+        A present value has been through `normalize_vin`, so it is 17
+        characters with no I, O, or Q. Invalid check digits are kept; that
+        test is informational and is not applied here.
+        """
+        if value is None or not isinstance(value, str):
+            return value
+        if not value.strip():
+            return None
+        return normalize_vin(value)
 
 
 # ─── Agent Reports ────────────────────────────────────────────────────────────
