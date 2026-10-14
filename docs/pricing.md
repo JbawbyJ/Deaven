@@ -103,6 +103,10 @@ A single listing with one price has no drop. History is not inferred from `listi
 
 ## Limitations
 
+### Data sources
+
+Per the terms review on PR #11, Bring a Trailer, classic.com, and TCV are parser-only until RJ decides otherwise. Saved pages can be parsed offline. They are not live comp feeds. The only live source is the eBay Browse API, and that API returns asking prices, not sold prices. A live estimate is therefore ask-based. Confidence stays low when few comps are available, because an asking-price set is thinner than a sold-price set and a small sample already caps `confidence`.
+
 - No network, no FX, no scraping. Callers pass USD amounts.
 - `estimate_value` does not dedupe. Deduped pricing goes through `assess_price`.
 - PR #8 is not on this branch. The local `vehicle_key` is a stand-in and should be deleted once `shared.schemas.market` imports.
