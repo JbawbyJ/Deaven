@@ -64,17 +64,45 @@ export type PriceObservation = {
 
 export type MatchMethod = 'vin' | 'fuzzy';
 
-/** VehicleCluster from PR #8. match_method is vin or fuzzy, never singleton. */
+/**
+ * UI rating from PR #12 @ 9cff34b. overpriced is stored as high.
+ * null is only the unknown case, when there is no estimate.
+ */
+export type DealRating = 'great' | 'good' | 'fair' | 'high';
+
+/** PR #12 Estimate. Each amount is null when there is no estimate. */
+export type Estimate = {
+  low: number | null;
+  mid: number | null;
+  high: number | null;
+};
+
+/**
+ * PR #12 ClusterResult. These five fields only.
+ * deal_score = (estimate.mid - asking) / estimate.mid.
+ */
+export type ClusterResult = {
+  deal_score: number | null;
+  deal_rating: DealRating | null;
+  estimate: Estimate;
+  confidence: number;
+  comp_count: number;
+};
+
+/**
+ * VehicleCluster from PR #8. result is PricedCluster.result from PR #12.
+ */
 export type VehicleCluster = {
   vehicle_key: string;
   listing_ids: string[];
   match_method: MatchMethod;
+  result?: ClusterResult | null;
 };
 
 /**
  * One source observation shaped like NormalizedListing, plus the #8 identity
  * fields this lane needs in order to group and show a price drop.
- * deal_score is intentionally absent: it is not on the #8 model.
+ * Pricing lives on VehicleCluster, not on each source observation.
  */
 export type ListingObservation = {
   observation_id: string;

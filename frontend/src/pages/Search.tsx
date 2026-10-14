@@ -51,12 +51,6 @@ export default function SearchPage() {
         onApply={() => setSearchParams(searchParamsFromQuery(draft))}
       />
 
-      {query.sort === 'deal' && (
-        <p className="text-sm text-zinc-400">
-          Deal score is not on the listing model, so results follow price.
-        </p>
-      )}
-
       {result.data?.note && (
         <p className="text-xs leading-relaxed text-zinc-500">{result.data.note}</p>
       )}

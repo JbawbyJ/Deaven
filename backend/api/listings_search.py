@@ -21,7 +21,10 @@ NOTE = (
     "Fixture listings shaped like PR #8 @ 5bc43fe "
     "(VehicleCluster, PriceObservation, Source, Seller, vehicle_key), "
     "stacked on PR #3 ListingLocation lat/lon. "
-    "ListingLocation has no zip field. deal_score is not on that model."
+    "ListingLocation has no zip field. "
+    "Cluster result follows PR #12 @ 9cff34b: deal_score, deal_rating, estimate, "
+    "confidence, and comp_count. deal_rating is great, good, fair, or high; "
+    "overpriced maps to high; null only when there is no estimate."
 )
 
 _EARTH_MILES = 3958.7613
@@ -36,6 +39,7 @@ _SOURCES = {
     "ebay": ("marketplace", "eBay", "https://www.ebay.com"),
     "hemmings": ("marketplace", "Hemmings", "https://www.hemmings.com"),
     "craigslist": ("marketplace", "Craigslist", "https://www.craigslist.org"),
+    "autotrader": ("dealer", "Autotrader", "https://www.autotrader.com"),
 }
 
 
@@ -96,10 +100,70 @@ class ListingOut(BaseModel):
     distance_miles: Optional[float] = None
 
 
+class EstimateOut(BaseModel):
+    """PR #12 Estimate. Amounts are null when there is no estimate."""
+
+    low: Optional[float] = None
+    mid: Optional[float] = None
+    high: Optional[float] = None
+
+
+class ClusterResultOut(BaseModel):
+    """PR #12 ClusterResult. overpriced is stored as high. null is unknown only."""
+
+    deal_score: Optional[float] = None
+    deal_rating: Optional[str] = None
+    estimate: EstimateOut
+    confidence: float
+    comp_count: int
+
+
 class ClusterOut(BaseModel):
     vehicle_key: str
     listing_ids: list[str]
     match_method: str
+    result: ClusterResultOut
+
+
+# Fixture estimates keyed by model. Asking is the latest asking observation.
+# deal_score = (mid - asking) / mid. Positive means below market.
+_ESTIMATES: dict[str, dict[str, float | int]] = {
+    "M3": {"low": 36000, "mid": 40000, "high": 46000, "confidence": 0.8, "comp_count": 4},
+    "RX-7": {"low": 31000, "mid": 34800, "high": 39000, "confidence": 0.45, "comp_count": 2},
+    "S2000": {"low": 22000, "mid": 24000, "high": 25500, "confidence": 0.35, "comp_count": 1},
+}
+
+
+def _deal_rating(score: float) -> str:
+    """rate_deal bands. A score below -0.15 is overpriced upstream and maps to high."""
+    if score >= 0.15:
+        return "great"
+    if score >= 0.05:
+        return "good"
+    if score >= -0.05:
+        return "fair"
+    return "high"
+
+
+def _pricing(model: str, asking: float) -> ClusterResultOut:
+    spec = _ESTIMATES.get(model)
+    if spec is None or float(spec["mid"]) <= 0:
+        return ClusterResultOut(
+            deal_score=None,
+            deal_rating=None,
+            estimate=EstimateOut(),
+            confidence=0.0,
+            comp_count=0,
+        )
+    mid = float(spec["mid"])
+    score = round((mid - asking) / mid, 4)
+    return ClusterResultOut(
+        deal_score=score,
+        deal_rating=_deal_rating(score),
+        estimate=EstimateOut(low=float(spec["low"]), mid=mid, high=float(spec["high"])),
+        confidence=float(spec["confidence"]),
+        comp_count=int(spec["comp_count"]),
+    )
 
 
 class ListingSearchResponse(BaseModel):
@@ -257,6 +321,28 @@ def fixture_listings() -> list[ListingOut]:
                 "title": "1991 Acura Legend L",
             }
         ),
+        _listing(
+            {
+                "vin": None,
+                "vin_note": "missing",
+                "year": 2006,
+                "make": "Honda",
+                "model": "S2000",
+                "trim": "Base",
+                "mileage": 41000,
+                "price": 27500,
+                "location": {
+                    "label": "Los Angeles, CA 90012",
+                    "city": "Los Angeles",
+                    "region": "CA",
+                    "country": "US",
+                },
+                "seller_type": "dealer",
+                "source": "autotrader",
+                "source_url": "https://www.autotrader.com/cars-for-sale/deaven-demo-2006-honda-s2000",
+                "title": "2006 Honda S2000",
+            }
+        ),
     ]
 
 
@@ -294,6 +380,20 @@ def _resolve(location: str) -> Optional[tuple[float, float]]:
     return found[0], found[1]
 
 
+def _cluster_asking(items: list[ListingOut]) -> float:
+    """Latest asking observation, otherwise the listing price."""
+    points = [
+        (price.observed_at, price.amount)
+        for item in items
+        for price in item.prices
+        if price.kind == "asking"
+    ]
+    if points:
+        points.sort()
+        return points[-1][1]
+    return min(item.price for item in items)
+
+
 def _clusters(listings: list[ListingOut]) -> list[ClusterOut]:
     order: list[str] = []
     buckets: dict[str, list[ListingOut]] = {}
@@ -307,6 +407,7 @@ def _clusters(listings: list[ListingOut]) -> list[ClusterOut]:
             vehicle_key=key,
             listing_ids=[item.observation_id for item in buckets[key]],
             match_method=buckets[key][0].match_method,
+            result=_pricing(buckets[key][0].model, _cluster_asking(buckets[key])),
         )
         for key in order
     ]

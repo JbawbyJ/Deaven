@@ -46,4 +46,4 @@ Search types in `src/types/listing.ts` mirror draft PR #8 (`agent/beebc-grok/lis
 - `ListingLocation` latitude and longitude are the map contract. `ListingLocation` has no zip field. The fuzzy `vehicle_key` reads a ZIP from the location label.
 - Results group by `vehicle_key` (`VehicleCluster`): a normalized VIN, or a fuzzy hash when the VIN is missing or invalid.
 - Fixtures match that PR: the same M3 on Bring a Trailer and eBay with an asking-price drop, a no-VIN RX-7, and an invalid-VIN Legend.
-- `deal_score` is not on that model, so the Deal sort follows price.
+- Cluster pricing is the PR #12 @ `9cff34b` `result` object: `deal_score`, `deal_rating`, `estimate`, `confidence`, `comp_count`. `deal_score` is `(estimate.mid - asking) / estimate.mid`. `deal_rating` is `great`, `good`, `fair`, or `high` (`overpriced` maps to `high`; `null` only when there is no estimate). The `high` badge reads overpriced. Deal sort is descending `result.deal_score`, and a null score stays last.

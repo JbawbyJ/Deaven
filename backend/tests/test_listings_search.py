@@ -10,8 +10,9 @@ def test_search_fixtures_follow_pr8_vehicle_key(client):
     assert response.status_code == 200
     body = response.json()
     assert "5bc43fe" in body["note"]
+    assert "9cff34b" in body["note"]
     assert "no zip field" in body["note"]
-    assert body["total"] == 4
+    assert body["total"] == 5
 
     by_source = {item["source"]: item for item in body["listings"]}
     bat = by_source["bat"]
@@ -48,6 +49,30 @@ def test_search_fixtures_follow_pr8_vehicle_key(client):
     assert legend["vin_note"] == "invalid"
     assert legend["vehicle_key"] == expected_legend
     assert legend["price"] == 18000
+
+    m3_priced = next(cluster for cluster in body["clusters"] if cluster["vehicle_key"] == "1HGCM82633A004352")
+    assert m3_priced["result"]["deal_score"] == round((40000 - 31200) / 40000, 4)
+    assert m3_priced["result"]["deal_score"] > 0
+    assert m3_priced["result"]["deal_rating"] == "great"
+    assert m3_priced["result"]["estimate"] == {"low": 36000, "mid": 40000, "high": 46000}
+    assert 0 <= m3_priced["result"]["confidence"] <= 1
+    assert m3_priced["result"]["comp_count"] == 4
+
+    legend_cluster = next(cluster for cluster in body["clusters"] if cluster["match_method"] == "fuzzy" and cluster["listing_ids"] == [legend["observation_id"]])
+    assert legend_cluster["result"]["deal_score"] is None
+    assert legend_cluster["result"]["deal_rating"] is None
+    assert legend_cluster["result"]["estimate"] == {"low": None, "mid": None, "high": None}
+    assert legend_cluster["result"]["confidence"] == 0
+    assert legend_cluster["result"]["comp_count"] == 0
+
+    s2000 = by_source["autotrader"]
+    assert s2000["model"] == "S2000"
+    assert s2000["price"] == 27500
+    s2000_cluster = next(cluster for cluster in body["clusters"] if cluster["listing_ids"] == [s2000["observation_id"]])
+    assert s2000_cluster["result"]["deal_rating"] == "high"
+    assert s2000_cluster["result"]["deal_score"] == round((24000 - 27500) / 24000, 4)
+    assert s2000_cluster["result"]["deal_score"] < -0.05
+    assert s2000_cluster["result"]["estimate"] == {"low": 22000, "mid": 24000, "high": 25500}
 
 
 def test_search_filters_make_mileage_and_radius(client):

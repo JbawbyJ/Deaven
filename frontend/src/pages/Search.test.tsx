@@ -88,11 +88,18 @@ describe('Search page', () => {
     expect(screen.queryByRole('article', { name: /Legend/i })).not.toBeInTheDocument();
   });
 
-  it('reads the sort query and explains that deal score is not on the model', async () => {
+  it('sorts by deal score and shows the rating badge and estimate range', async () => {
     renderSearch('/search?sort=deal');
     expect(screen.getByLabelText('Sort')).toHaveValue('deal');
-    expect(await screen.findByText(/deal score is not on the listing model/i)).toBeInTheDocument();
     const articles = await screen.findAllByRole('article');
-    expect(articles[0]).toHaveAccessibleName(/Acura Legend/);
+    expect(articles[0]).toHaveAccessibleName(/BMW M3/);
+    expect(articles.at(-1)).toHaveAccessibleName(/Acura Legend/);
+    expect(within(articles[0]).getByText('great')).toBeInTheDocument();
+    expect(within(articles[0]).getByText('Estimate $36,000 to $46,000')).toBeInTheDocument();
+    const s2000 = screen.getByRole('article', { name: /S2000/i });
+    expect(within(s2000).getByText('overpriced')).toBeInTheDocument();
+    expect(within(s2000).getByText('Estimate $22,000 to $25,500')).toBeInTheDocument();
+    expect(within(articles.at(-1)!).queryByText('great')).not.toBeInTheDocument();
+    expect(within(articles.at(-1)!).queryByText(/Estimate/)).not.toBeInTheDocument();
   });
 });

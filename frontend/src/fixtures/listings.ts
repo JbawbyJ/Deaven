@@ -132,6 +132,27 @@ const RAW: RawListing[] = [
     source_url: 'https://example.com/listings/invalid-vin',
     title: '1991 Acura Legend L',
   },
+  {
+    vin: null,
+    vin_note: 'missing',
+    year: 2006,
+    make: 'Honda',
+    model: 'S2000',
+    trim: 'Base',
+    mileage: 41000,
+    price: 27500,
+    currency: 'USD',
+    location: {
+      label: 'Los Angeles, CA 90012',
+      city: 'Los Angeles',
+      region: 'CA',
+      country: 'US',
+    },
+    seller_type: 'dealer',
+    source: 'autotrader',
+    source_url: 'https://www.autotrader.com/cars-for-sale/deaven-demo-2006-honda-s2000',
+    title: '2006 Honda S2000',
+  },
 ];
 
 function toObservation(raw: RawListing): ListingObservation {

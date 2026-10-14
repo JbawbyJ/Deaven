@@ -4,6 +4,7 @@ import type {
   SearchSort,
   VehicleCluster,
 } from '../types/listing';
+import { clusterResult } from './dealScore';
 import { hasCoordinates } from './geo';
 
 export type SourceOffer = {
@@ -41,6 +42,20 @@ export function earlierAsking(prices: PriceObservation[]): number | null {
   return latest < first ? first : null;
 }
 
+/** Latest asking observation, otherwise the listing price. PR #12 cluster ask. */
+function clusterAsking(observations: ListingObservation[]): number {
+  const asking = observations.flatMap((item) =>
+    item.prices
+      .filter((price) => price.kind === 'asking')
+      .map((price) => ({ at: price.observed_at, amount: price.amount })),
+  );
+  if (asking.length) {
+    asking.sort((a, b) => a.at.localeCompare(b.at));
+    return asking[asking.length - 1].amount;
+  }
+  return observations[0]?.price ?? 0;
+}
+
 /** Group by VehicleCluster.vehicle_key so one car on several sources shows once. */
 export function groupListings(listings: ListingObservation[]): ListingGroup[] {
   const buckets = new Map<string, ListingObservation[]>();
@@ -66,10 +81,12 @@ export function groupListings(listings: ListingObservation[]): ListingGroup[] {
     const distances = observations
       .map((item) => item.distance_miles)
       .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+    const minPrice = Math.min(...observations.map((item) => item.price));
     const cluster: VehicleCluster = {
       vehicle_key: vehicleKey,
       listing_ids: observations.map((item) => item.observation_id),
       match_method: observations.some((item) => item.match_method === 'vin') ? 'vin' : 'fuzzy',
+      result: clusterResult(first.model, clusterAsking(observations)),
     };
     const title = [first.year, first.make, first.model, first.trim].filter(Boolean).join(' ');
     return {
@@ -81,7 +98,7 @@ export function groupListings(listings: ListingObservation[]): ListingGroup[] {
       trim: first.trim ?? null,
       mileage: first.mileage ?? null,
       location: withCoords?.location ?? first.location ?? null,
-      minPrice: Math.min(...observations.map((item) => item.price)),
+      minPrice,
       distanceMiles: distances.length ? Math.min(...distances) : null,
       offers,
       observations,
@@ -96,13 +113,25 @@ function compareAscNullLast(a: number | null, b: number | null): number {
   return a - b;
 }
 
+function compareDescNullLast(a: number | null, b: number | null): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return b - a;
+}
+
 export function sortGroups(groups: ListingGroup[], sort: SearchSort): ListingGroup[] {
   const copy = [...groups];
   copy.sort((a, b) => {
     if (sort === 'distance') {
       return compareAscNullLast(a.distanceMiles, b.distanceMiles) || a.minPrice - b.minPrice;
     }
-    // deal_score is not on the PR #8 model. "deal" falls through to price.
+    if (sort === 'deal') {
+      return (
+        compareDescNullLast(a.cluster.result?.deal_score ?? null, b.cluster.result?.deal_score ?? null) ||
+        a.minPrice - b.minPrice
+      );
+    }
     return a.minPrice - b.minPrice || a.title.localeCompare(b.title);
   });
   return copy;

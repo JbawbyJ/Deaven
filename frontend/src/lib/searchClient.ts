@@ -5,7 +5,7 @@ import { groupListings } from './groupListings';
 import { searchParamsFromQuery } from './searchParams';
 
 export const FIXTURE_NOTE =
-  'Local fixtures shaped like PR #8 @ 5bc43fe (VehicleCluster, PriceObservation, Source, Seller, vehicle_key), stacked on PR #3 ListingLocation lat/lon. ListingLocation has no zip field. deal_score is not on that model.';
+  'Local fixtures shaped like PR #8 @ 5bc43fe (VehicleCluster, PriceObservation, Source, Seller, vehicle_key), stacked on PR #3 ListingLocation lat/lon. ListingLocation has no zip field. Cluster result follows PR #12 @ 9cff34b: deal_score, deal_rating, estimate, confidence, and comp_count. deal_rating is great, good, fair, or high; overpriced maps to high; null only when there is no estimate.';
 
 export async function searchListings(query: SearchQuery): Promise<ListingSearchResponse> {
   const base = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');

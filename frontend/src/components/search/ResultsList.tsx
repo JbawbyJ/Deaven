@@ -1,3 +1,4 @@
+import { ratingBadge } from '../../lib/dealScore';
 import { formatMileage, formatPrice } from '../../lib/formatters';
 import type { ListingGroup } from '../../lib/groupListings';
 
@@ -20,6 +21,9 @@ export default function ResultsList({ groups, selectedKey, onSelect }: Props) {
     <div className="space-y-3">
       {groups.map((group) => {
         const selected = group.cluster.vehicle_key === selectedKey;
+        const badge = ratingBadge(group.cluster.result?.deal_rating);
+        const estimate = group.cluster.result?.estimate;
+        const showRange = estimate?.low != null && estimate.high != null;
         return (
           <article
             key={group.cluster.vehicle_key}
@@ -37,7 +41,26 @@ export default function ResultsList({ groups, selectedKey, onSelect }: Props) {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold text-zinc-100">{group.title}</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold text-zinc-100">{group.title}</h2>
+                  {badge && (
+                    <span
+                      className={[
+                        'rounded border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide',
+                        group.cluster.result?.deal_rating === 'high'
+                          ? 'border-deaven-fire/40 bg-deaven-fire/10 text-deaven-fire'
+                          : 'border-deaven-gold/40 bg-deaven-gold/10 text-deaven-gold',
+                      ].join(' ')}
+                    >
+                      {badge}
+                    </span>
+                  )}
+                </div>
+                {showRange && estimate && (
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Estimate {formatPrice(estimate.low)} to {formatPrice(estimate.high)}
+                  </p>
+                )}
                 <p className="mt-1 text-xs text-zinc-500">
                   {group.cluster.match_method === 'vin' ? 'Same VIN' : 'Fuzzy vehicle key'}
                   {group.mileage != null ? ` · ${formatMileage(group.mileage)}` : ''}
