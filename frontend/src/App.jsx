@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
 import DealDetail from './pages/DealDetail';
 import Pipeline from './pages/Pipeline';
+import SearchPage from './pages/Search';
 import Watchlist from './pages/Watchlist';
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/search" element={<SearchPage />} />
             <Route path="/deals/:id" element={<DealDetail />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/pipeline" element={<Pipeline />} />
