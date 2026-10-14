@@ -1,28 +1,19 @@
 {
-  "vin": "1hgcm82633a004352",
+  "title": "2003 BMW M3 Coupe",
+  "asking_price": 28900,
+  "sold_price": 27000,
+  "sold_at": "2026-08-02T00:00:00Z",
+  "currency": "usd",
+  "mileage": 62140,
   "year": 2003,
   "make": "BMW",
   "model": "M3",
-  "trim": "Coupe",
-  "mileage": 62140,
-  "price": 28900,
-  "currency": "usd",
-  "location": {
-    "label": "Austin, TX",
-    "city": "Austin",
-    "region": "TX",
-    "country": "US",
-    "latitude": 30.2672,
-    "longitude": -97.7431
-  },
-  "seller_type": "auction",
-  "source": "bat",
-  "source_url": "https://example.com/listings/m3",
-  "title": "2003 BMW M3 Coupe",
-  "photos": [
-    {"url": "https://img.example/a.jpg"}
-  ],
-  "first_seen": "2026-08-01T00:00:00Z",
-  "last_seen": "2026-08-02T00:00:00Z",
-  "payload": {"slug": "bmw-m3-2003", "price": 28900}
+  "trim": "SZ-R",
+  "vin": "1hg-cm82633-a004352",
+  "location": "Austin, TX",
+  "region": "tx",
+  "zip": "78701",
+  "seller_type": "private",
+  "source": "ebay",
+  "source_id": "1234567890"
 }
