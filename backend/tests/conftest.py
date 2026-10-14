@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from functools import partial
 from pathlib import Path
 
 import pytest
@@ -29,10 +30,44 @@ def isolated_store(tmp_path, monkeypatch):
     yield
 
 
+class _SyncASGIClient:
+    """Sync facade over httpx.AsyncClient. Starlette's TestClient warns without httpx2."""
+
+    def __init__(self, portal, client) -> None:
+        self._portal = portal
+        self._client = client
+
+    def _call(self, method: str, url: str, **kwargs):
+        return self._portal.call(partial(getattr(self._client, method), url, **kwargs))
+
+    def get(self, url: str, **kwargs):
+        return self._call("get", url, **kwargs)
+
+    def post(self, url: str, **kwargs):
+        return self._call("post", url, **kwargs)
+
+    def patch(self, url: str, **kwargs):
+        return self._call("patch", url, **kwargs)
+
+    def delete(self, url: str, **kwargs):
+        return self._call("delete", url, **kwargs)
+
+
 @pytest.fixture
 def client(isolated_store):
-    from fastapi.testclient import TestClient
+    import anyio
+    import httpx
+
     from backend.api.main import app
 
-    with TestClient(app) as test_client:
-        yield test_client
+    lifespan = app.router.lifespan_context(app)
+    transport = httpx.ASGITransport(app=app)
+    with anyio.from_thread.start_blocking_portal() as portal:
+        portal.call(lifespan.__aenter__)
+        http = httpx.AsyncClient(transport=transport, base_url="http://testserver")
+        portal.call(http.__aenter__)
+        try:
+            yield _SyncASGIClient(portal, http)
+        finally:
+            portal.call(http.__aexit__, None, None, None)
+            portal.call(lifespan.__aexit__, None, None, None)

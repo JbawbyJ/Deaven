@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import warnings
+from datetime import datetime, timezone
+
 SWAGGER_PATHS = {
     "/health",
     "/deals/ingest",
@@ -12,6 +15,38 @@ SWAGGER_PATHS = {
     "/stats/pipeline",
     "/scout/run",
 }
+
+
+def _assert_naive_utc_iso(stamp: str) -> None:
+    """Same shape as datetime.utcnow().isoformat(): no offset, recent UTC."""
+    parsed = datetime.fromisoformat(stamp)
+    assert parsed.tzinfo is None
+    assert "+" not in stamp
+    assert not stamp.endswith("Z")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    assert abs((now - parsed).total_seconds()) < 5
+
+
+def test_api_clock_stays_naive_iso_without_utcnow(client):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", DeprecationWarning)
+        health = client.get("/health")
+        assert health.status_code == 200
+        _assert_naive_utc_iso(health.json()["timestamp"])
+
+        scout = client.post("/scout/run", json={})
+        assert scout.status_code == 200
+        followup = client.get("/health").json()
+        _assert_naive_utc_iso(followup["last_scout"]["at"])
+
+    api_utcnow = [
+        item
+        for item in caught
+        if issubclass(item.category, DeprecationWarning)
+        and "utcnow" in str(item.message)
+        and str(item.filename).endswith("backend/api/main.py")
+    ]
+    assert api_utcnow == []
 
 
 def test_health(client):
