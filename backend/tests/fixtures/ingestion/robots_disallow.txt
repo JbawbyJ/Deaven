@@ -1,0 +1,5 @@
+User-agent: DeavenBot
+Disallow: /
+
+User-agent: *
+Allow: /
