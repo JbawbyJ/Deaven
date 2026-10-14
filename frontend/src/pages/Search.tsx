@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import ListingMap from '../components/search/ListingMap';
+import ListingMap from '../components/search/ListingMap.tsx';
 import ResultsList from '../components/search/ResultsList';
-import SearchFilters from '../components/search/SearchFilters';
+import SearchFilters from '../components/search/SearchFilters.tsx';
 import { groupListings, sortGroups } from '../lib/groupListings';
 import { searchListings } from '../lib/searchClient';
 import { queryFromSearchParams, searchParamsFromQuery } from '../lib/searchParams';

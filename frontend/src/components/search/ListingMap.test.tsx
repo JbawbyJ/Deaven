@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { OSM_COPYRIGHT_URL } from '../../config/mapConfig';
 import { fixtureListings } from '../../fixtures/listings';
 import { groupListings } from '../../lib/groupListings';
-import ListingMap from './ListingMap';
+import ListingMap from './ListingMap.tsx';
 
 const groups = groupListings(fixtureListings());
 

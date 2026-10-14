@@ -25,6 +25,11 @@ export function formatTier(t) {
   return TIER_LABELS[String(t).toLowerCase()] ?? String(t).toUpperCase();
 }
 
+export function formatDistance(miles) {
+  if (miles == null || Number.isNaN(Number(miles))) return null;
+  return `${Math.round(Number(miles))} mi`;
+}
+
 export function formatMileage(n) {
   if (n == null || Number.isNaN(Number(n))) return '—';
   const miles = Number(n);
