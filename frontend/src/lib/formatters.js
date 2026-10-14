@@ -80,3 +80,19 @@ export function tierBgClass(tier) {
   if (t === 'watchlist') return 'bg-deaven-watch/15 border-deaven-watch/40';
   return 'bg-deaven-pass/15 border-deaven-pass/40';
 }
+
+export function formatDeltaPct(fraction) {
+  if (fraction == null || Number.isNaN(Number(fraction))) return '—';
+  const value = Number(fraction);
+  const amount = Math.abs(value * 100);
+  const text = `${amount.toFixed(1)}%`;
+  if (amount < 0.05) return '0.0%';
+  if (value < 0) return `${text} under`;
+  return `${text} over`;
+}
+
+export function formatTrend(trend) {
+  const key = String(trend ?? '').toLowerCase();
+  if (key === 'down' || key === 'up' || key === 'flat' || key === 'unknown') return key;
+  return null;
+}
