@@ -1,0 +1,447 @@
+{
+  "$defs": {
+    "ListingLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City"
+        },
+        "country": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "latitude": {
+          "anyOf": [
+            {
+              "maximum": 90,
+              "minimum": -90,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "maximum": 180,
+              "minimum": -180,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        }
+      },
+      "title": "ListingLocation",
+      "type": "object"
+    },
+    "ListingPhoto": {
+      "additionalProperties": false,
+      "properties": {
+        "hash_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PhotoHashKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "ListingPhoto",
+      "type": "object"
+    },
+    "MatchMethod": {
+      "enum": [
+        "vin",
+        "fuzzy",
+        "singleton"
+      ],
+      "title": "MatchMethod",
+      "type": "string"
+    },
+    "NormalizedListing": {
+      "additionalProperties": false,
+      "description": "One observation of a vehicle from one source.",
+      "properties": {
+        "currency": {
+          "default": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "first_seen": {
+          "format": "date-time",
+          "title": "First Seen",
+          "type": "string"
+        },
+        "last_seen": {
+          "format": "date-time",
+          "title": "Last Seen",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/ListingLocation"
+        },
+        "make": {
+          "minLength": 1,
+          "title": "Make",
+          "type": "string"
+        },
+        "mileage": {
+          "anyOf": [
+            {
+              "maximum": 2000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mileage"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "observation_id": {
+          "default": "",
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "photos": {
+          "items": {
+            "$ref": "#/$defs/ListingPhoto"
+          },
+          "title": "Photos",
+          "type": "array"
+        },
+        "price": {
+          "minimum": 0,
+          "title": "Price",
+          "type": "number"
+        },
+        "provenance": {
+          "$ref": "#/$defs/RawProvenance"
+        },
+        "seller_type": {
+          "$ref": "#/$defs/SellerType"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "trim": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trim"
+        },
+        "vin": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vin"
+        },
+        "year": {
+          "maximum": 2100,
+          "minimum": 1886,
+          "title": "Year",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "year",
+        "make",
+        "model",
+        "price",
+        "seller_type",
+        "source",
+        "source_url",
+        "first_seen",
+        "last_seen",
+        "provenance"
+      ],
+      "title": "NormalizedListing",
+      "type": "object"
+    },
+    "PhotoHashKind": {
+      "enum": [
+        "content",
+        "url"
+      ],
+      "title": "PhotoHashKind",
+      "type": "string"
+    },
+    "RawProvenance": {
+      "additionalProperties": false,
+      "description": "Exact payload an adapter accepted, so later lanes can audit a merge.",
+      "properties": {
+        "fetched_at": {
+          "format": "date-time",
+          "title": "Fetched At",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "payload_sha256": {
+          "title": "Payload Sha256",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "source_url",
+        "fetched_at",
+        "payload",
+        "payload_sha256"
+      ],
+      "title": "RawProvenance",
+      "type": "object"
+    },
+    "SellerType": {
+      "description": "Channel the listing was seen on, not the private-party vs dealer flag.",
+      "enum": [
+        "dealer",
+        "marketplace",
+        "auction"
+      ],
+      "title": "SellerType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Merged vehicle. source_records keeps every contributing observation.\n\nmatch_method is vin, fuzzy, or singleton. seller_type and price are taken\nfrom the latest observation; they are not a valuation.",
+  "properties": {
+    "canonical_id": {
+      "minLength": 1,
+      "title": "Canonical Id",
+      "type": "string"
+    },
+    "currency": {
+      "default": "USD",
+      "title": "Currency",
+      "type": "string"
+    },
+    "first_seen": {
+      "format": "date-time",
+      "title": "First Seen",
+      "type": "string"
+    },
+    "last_seen": {
+      "format": "date-time",
+      "title": "Last Seen",
+      "type": "string"
+    },
+    "location": {
+      "$ref": "#/$defs/ListingLocation"
+    },
+    "make": {
+      "minLength": 1,
+      "title": "Make",
+      "type": "string"
+    },
+    "match_method": {
+      "$ref": "#/$defs/MatchMethod"
+    },
+    "mileage": {
+      "anyOf": [
+        {
+          "maximum": 2000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mileage"
+    },
+    "model": {
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "photos": {
+      "items": {
+        "$ref": "#/$defs/ListingPhoto"
+      },
+      "title": "Photos",
+      "type": "array"
+    },
+    "price": {
+      "minimum": 0,
+      "title": "Price",
+      "type": "number"
+    },
+    "seller_type": {
+      "$ref": "#/$defs/SellerType"
+    },
+    "source_records": {
+      "items": {
+        "$ref": "#/$defs/NormalizedListing"
+      },
+      "minItems": 1,
+      "title": "Source Records",
+      "type": "array"
+    },
+    "trim": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Trim"
+    },
+    "vin": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Vin"
+    },
+    "year": {
+      "maximum": 2100,
+      "minimum": 1886,
+      "title": "Year",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "canonical_id",
+    "match_method",
+    "year",
+    "make",
+    "model",
+    "price",
+    "location",
+    "seller_type",
+    "first_seen",
+    "last_seen",
+    "source_records"
+  ],
+  "title": "CanonicalListing",
+  "type": "object"
+}

@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "description": "Exact payload an adapter accepted, so later lanes can audit a merge.",
+  "properties": {
+    "fetched_at": {
+      "format": "date-time",
+      "title": "Fetched At",
+      "type": "string"
+    },
+    "payload": {
+      "additionalProperties": true,
+      "title": "Payload",
+      "type": "object"
+    },
+    "payload_sha256": {
+      "title": "Payload Sha256",
+      "type": "string"
+    },
+    "source": {
+      "minLength": 1,
+      "title": "Source",
+      "type": "string"
+    },
+    "source_url": {
+      "title": "Source Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source",
+    "source_url",
+    "fetched_at",
+    "payload",
+    "payload_sha256"
+  ],
+  "title": "RawProvenance",
+  "type": "object"
+}

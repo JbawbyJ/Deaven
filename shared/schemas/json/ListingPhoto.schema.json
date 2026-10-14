@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "PhotoHashKind": {
+      "enum": [
+        "content",
+        "url"
+      ],
+      "title": "PhotoHashKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "hash_kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PhotoHashKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "sha256": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sha256"
+    },
+    "url": {
+      "title": "Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "url"
+  ],
+  "title": "ListingPhoto",
+  "type": "object"
+}
