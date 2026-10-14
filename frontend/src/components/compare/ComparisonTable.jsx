@@ -85,6 +85,9 @@ export default function ComparisonTable({ rows }) {
                 <span className="mt-0.5 block font-mono text-xs font-normal text-zinc-500">
                   {row.trim || '—'}
                 </span>
+                <span className="mt-1 block font-mono text-sm font-semibold text-deaven-gold">
+                  {formatPrice(row.asking_price)}
+                </span>
               </th>
             ))}
           </tr>
