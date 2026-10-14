@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "DealSource": {
+      "enum": [
+        "bat",
+        "cab",
+        "ebay",
+        "classic_com",
+        "tcv",
+        "facebook",
+        "autotrader",
+        "hemmings",
+        "craigslist",
+        "manual"
+      ],
+      "title": "DealSource",
+      "type": "string"
+    },
+    "SellerType": {
+      "description": "Channel the listing was seen on, not the private-party vs dealer flag.",
+      "enum": [
+        "dealer",
+        "marketplace",
+        "auction"
+      ],
+      "title": "SellerType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Where a listing was seen.\n\n`code` reuses DealSource values (bat, ebay, ...). `kind` reuses SellerType\n(dealer, marketplace, auction). robots_ok and tos_reviewed stay false until\nsomeone has actually checked that source.",
+  "properties": {
+    "base_url": {
+      "title": "Base Url",
+      "type": "string"
+    },
+    "code": {
+      "$ref": "#/$defs/DealSource"
+    },
+    "kind": {
+      "$ref": "#/$defs/SellerType"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "robots_ok": {
+      "default": false,
+      "title": "Robots Ok",
+      "type": "boolean"
+    },
+    "tos_reviewed": {
+      "default": false,
+      "title": "Tos Reviewed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "code",
+    "kind",
+    "name",
+    "base_url"
+  ],
+  "title": "Source",
+  "type": "object"
+}

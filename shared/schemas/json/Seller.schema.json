@@ -1,0 +1,38 @@
+{
+  "$defs": {
+    "SellerType": {
+      "description": "Channel the listing was seen on, not the private-party vs dealer flag.",
+      "enum": [
+        "dealer",
+        "marketplace",
+        "auction"
+      ],
+      "title": "SellerType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Named seller. seller_type is the #3 channel enum, not a new one.",
+  "properties": {
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "seller_type": {
+      "$ref": "#/$defs/SellerType"
+    }
+  },
+  "required": [
+    "seller_type"
+  ],
+  "title": "Seller",
+  "type": "object"
+}

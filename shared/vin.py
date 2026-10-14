@@ -1,9 +1,12 @@
-"""ISO 3779 VIN check-digit validation and offline decode.
+"""ISO 3779 VIN check-digit validation.
 
-The risk agent decodes VINs through NHTSA. `normalize_vin`, `check_digit`,
-`validate_vin`, and `is_valid_vin` are the offline check used before a VIN
-may identify a listing; they do not call the network. `decode_vpic` is a
-separate public NHTSA call and stays off unless explicitly enabled.
+The risk agent decodes VINs through NHTSA. This module is the offline
+check used before a VIN may identify a listing. `normalize_vin`,
+`check_digit`, `validate_vin`, `is_valid_vin`, and `vin_key` do not call
+the network.
+
+`decode_vin` is an offline decode. `decode_vpic` is an optional public
+NHTSA call and stays off unless explicitly enabled.
 """
 
 from __future__ import annotations
@@ -93,11 +96,16 @@ def is_valid_vin(value: str | None) -> bool:
 
 
 def vin_key(raw: str) -> str | None:
-    """Canonical VIN for dedupe, or None when `validate_vin` would reject it."""
-    if not is_valid_vin(raw):
-        return None
-    return validate_vin(raw)
+    """Return the normalized VIN, or None when it is invalid.
 
+    Confirmed signature: vin_key(raw: str) -> str | None.
+    """
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        return validate_vin(raw)
+    except VinError:
+        return None
 
 # Position 10. The same code repeats every 30 years: (1980-2009, 2010-2039).
 # U, Z, and 0 are not year codes. I, O, and Q cannot appear in a VIN.

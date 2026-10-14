@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "PriceKind": {
+      "enum": [
+        "asking",
+        "bid",
+        "sold",
+        "reserve_not_met"
+      ],
+      "title": "PriceKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One observed price for a NormalizedListing.observation_id.",
+  "properties": {
+    "amount": {
+      "minimum": 0,
+      "title": "Amount",
+      "type": "number"
+    },
+    "currency": {
+      "default": "USD",
+      "title": "Currency",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/PriceKind"
+    },
+    "listing_id": {
+      "minLength": 1,
+      "title": "Listing Id",
+      "type": "string"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "listing_id",
+    "observed_at",
+    "amount",
+    "kind"
+  ],
+  "title": "PriceObservation",
+  "type": "object"
+}

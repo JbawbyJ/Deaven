@@ -1,0 +1,32 @@
+{
+  "vin": "1HGCM82633A004352",
+  "year": 2003,
+  "make": "BMW",
+  "model": "M3",
+  "trim": "Coupe",
+  "mileage": 62140,
+  "price": 31200,
+  "currency": "USD",
+  "location": {
+    "label": "Austin, TX 78701",
+    "city": "Austin",
+    "region": "TX",
+    "country": "US",
+    "latitude": 30.2672,
+    "longitude": -97.7431
+  },
+  "seller_type": "auction",
+  "source": "bat",
+  "source_url": "https://bringatrailer.com/listing/deaven-demo-2003-bmw-m3",
+  "title": "2003 BMW M3 Coupe",
+  "photos": [
+    {"url": "https://img.example/bat-m3.jpg"}
+  ],
+  "first_seen": "2026-07-01T00:00:00Z",
+  "last_seen": "2026-08-01T00:00:00Z",
+  "fetched_at": "2026-08-01T00:00:00Z",
+  "payload": {
+    "note": "Made-up Bring a Trailer listing for the same demo M3.",
+    "site": "bringatrailer"
+  }
+}

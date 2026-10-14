@@ -1,0 +1,32 @@
+{
+  "vin": "1hg-cm82633-a004352",
+  "year": 2003,
+  "make": "BMW",
+  "model": "M3",
+  "trim": "Coupe",
+  "mileage": 62210,
+  "price": 32950,
+  "currency": "USD",
+  "location": {
+    "label": "Austin, TX 78701",
+    "city": "Austin",
+    "region": "TX",
+    "country": "US",
+    "latitude": 30.2672,
+    "longitude": -97.7431
+  },
+  "seller_type": "marketplace",
+  "source": "ebay",
+  "source_url": "https://www.ebay.com/itm/deaven-demo-2003-bmw-m3",
+  "title": "2003 BMW M3 Coupe",
+  "photos": [
+    {"url": "https://img.example/ebay-m3.jpg"}
+  ],
+  "first_seen": "2026-07-18T00:00:00Z",
+  "last_seen": "2026-07-20T00:00:00Z",
+  "fetched_at": "2026-07-20T00:00:00Z",
+  "payload": {
+    "note": "Made-up eBay listing for the same demo M3.",
+    "site": "ebay"
+  }
+}
