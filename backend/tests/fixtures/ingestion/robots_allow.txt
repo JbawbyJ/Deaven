@@ -1,0 +1,6 @@
+User-agent: DeavenBot
+Crawl-delay: 5
+Disallow:
+
+User-agent: *
+Disallow: /

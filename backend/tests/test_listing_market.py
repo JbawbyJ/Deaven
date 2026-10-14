@@ -45,6 +45,7 @@ def _load_listing(name: str) -> NormalizedListing:
 
 
 def _deal(**overrides) -> DealPayload:
+    unchecked = overrides.pop("unchecked", False)
     listing = {
         "title": "2003 BMW M3 Coupe",
         "price": 32950.0,
@@ -64,7 +65,7 @@ def _deal(**overrides) -> DealPayload:
         "url": EBAY_URL,
         "ingested_at": datetime(2026, 7, 20, tzinfo=timezone.utc),
         "images": ["https://img.example/m3.jpg"],
-        "listing": ListingData(**listing),
+        "listing": ListingData.model_construct(**listing) if unchecked else ListingData(**listing),
     }
     fields.update(overrides)
     return DealPayload(**fields)
@@ -294,7 +295,7 @@ def test_adapters_round_trip():
     assert again.price == listing.price
     assert again.source_url == listing.source_url
 
-    invalid = listing_from_deal(_deal(listing={"vin": INVALID_VIN, "location": "Denver, CO 80202"}))
+    invalid = listing_from_deal(_deal(listing={"vin": INVALID_VIN, "location": "Denver, CO 80202"}, unchecked=True))
     assert invalid.vin is None
     assert vin_key(INVALID_VIN) is None
     assert vehicle_key(invalid) == hashlib.sha256(
