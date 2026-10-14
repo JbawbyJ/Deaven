@@ -1,0 +1,14 @@
+{
+  "vin": "JH4KA8260MC000000",
+  "year": 1991,
+  "make": "Acura",
+  "model": "Legend",
+  "trim": "L",
+  "mileage": 142000,
+  "location": {
+    "label": "Denver, CO 80202",
+    "city": "Denver",
+    "region": "CO",
+    "country": "US"
+  }
+}
