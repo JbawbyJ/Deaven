@@ -15,7 +15,7 @@ USER_AGENT = "DeavenBot/0.1 (+https://github.com/JbawbyJ/Deaven; listing-ingesti
 
 Clock = Callable[[], float]
 Sleeper = Callable[[float], None]
-Transport = Callable[[str, dict[str, str]], tuple[int, str]]
+Transport = Callable[..., tuple[int, str]]
 
 
 class RobotsDisallowed(Exception):
@@ -93,12 +93,17 @@ class DomainRateLimiter:
         return wait
 
 
-def default_transport(url: str, headers: dict[str, str]) -> tuple[int, str]:
-    """Live HTTP GET. Tests pass their own transport and do not call this."""
+def default_transport(
+    url: str,
+    headers: dict[str, str],
+    method: str = "GET",
+    body: bytes | None = None,
+) -> tuple[int, str]:
+    """Live HTTP. Tests pass their own transport and do not call this."""
     import urllib.error
     import urllib.request
 
-    request = urllib.request.Request(url, headers=headers)
+    request = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             raw = response.read()
