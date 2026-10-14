@@ -2,30 +2,25 @@
 Thin adapter from a stored deal to a search hit.
 
 Reads ListingData as extended on agent/builder/deaven-ingestion (PR #3):
-`listing_id` (`{source}:{source_id}`), `region`, and `zip`, plus the existing
-display `location`. `listing_id` is the stable id. `deal_id` stays the
-pipeline id so the current deal page still opens. Older rows leave
-`listing_id` null.
+`listing_id`, `region`, `zip`, and optional `lat`/`lng`. Ingestion fills
+coordinates from the listing or from a ZIP centroid. This module does not
+invent a pin from the city name.
 
-TODO(builder-lat-lng): remove the fixture gazetteer once ListingData stores
-latitude/longitude. Coordinates already pass through when present and win
-over the gazetteer.
+`listing_id` is the stable id. `deal_id` stays the pipeline id so the
+current deal page still opens.
 """
 
 from __future__ import annotations
 
 from typing import Any, Optional
 
-from backend.search.geo import haversine_miles, resolve_place
+from backend.search.geo import haversine_miles
 from shared.schemas.search import SearchHit
-
-_LAT_FIELDS = ("latitude", "lat")
-_LNG_FIELDS = ("longitude", "lng", "lon")
 
 
 def to_hit(payload: Any, center: Optional[tuple[float, float]] = None) -> SearchHit:
     listing = payload.listing
-    lat, lng, geo_source = _coordinates(listing)
+    lat, lng = _coordinates(listing)
     distance = None
     if center is not None and lat is not None and lng is not None:
         distance = round(haversine_miles(center[0], center[1], lat, lng), 1)
@@ -44,24 +39,20 @@ def to_hit(payload: Any, center: Optional[tuple[float, float]] = None) -> Search
         zip=_text(listing, "zip"),
         lat=lat,
         lng=lng,
-        geo_source=geo_source,
         distance_miles=distance,
         deal_score=getattr(payload, "deal_score", None),
         deal_tier=_enum_str(getattr(payload, "deal_tier", None)),
     )
 
 
-def _coordinates(listing: Any) -> tuple[Optional[float], Optional[float], Optional[str]]:
-    lat = _optional_float(_field(listing, *_LAT_FIELDS))
-    lng = _optional_float(_field(listing, *_LNG_FIELDS))
-    if lat is not None and lng is not None:
-        return lat, lng, "listing"
-    # TODO(builder-lat-lng): delete this gazetteer fallback once lat/lng is on ListingData.
-    resolved = resolve_place(_text(listing, "location"))
-    if resolved is None:
-        return None, None, None
-    _label, place_lat, place_lng, _how = resolved
-    return place_lat, place_lng, "fixture_gazetteer"
+def _coordinates(listing: Any) -> tuple[Optional[float], Optional[float]]:
+    lat = _optional_float(_field(listing, "lat"))
+    lng = _optional_float(_field(listing, "lng"))
+    if lat is None or lng is None:
+        return None, None
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        return None, None
+    return lat, lng
 
 
 def _region(value: Optional[str]) -> Optional[str]:

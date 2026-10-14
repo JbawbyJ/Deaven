@@ -5,49 +5,45 @@ from __future__ import annotations
 from shared.schemas.deal import DealPayload, DealSource, ListingData
 
 
-def test_radius_search_uses_fixture_cities(client):
-    near = client.get("/search/listings", params={"location": "Austin, TX", "radius_miles": 50})
-    assert near.status_code == 200
-    body = near.json()
-    assert body["center"]["resolved_by"] == "fixture_gazetteer"
-    assert {item["location"] for item in body["listings"]} == {"Austin, TX"}
-    assert body["listings"][0]["make"] == "BMW"
-    assert body["listings"][0]["geo_source"] == "fixture_gazetteer"
-    assert body["listings"][0]["listing_id"] is None
-    assert "fixture city gazetteer" in body["note"]
+def test_seeded_listings_are_not_pinned_without_coordinates(client):
+    listed = client.get("/search/listings")
+    assert listed.status_code == 200
+    body = listed.json()
+    assert body["center"] is None
+    assert body["total"] == 5
+    assert body["without_coordinates"] == 5
+    assert all(item["lat"] is None and item["lng"] is None for item in body["listings"])
+    assert "not on the map" in body["note"]
 
-    regional = client.get(
+    radius = client.get(
         "/search/listings",
-        params={"location": "Austin, TX", "radius_miles": 900},
+        params={"lat": 30.2672, "lng": -97.7431, "radius_miles": 500},
     )
-    places = {item["location"] for item in regional.json()["listings"]}
-    assert places == {"Austin, TX", "Denver, CO", "Atlanta, GA"}
+    assert radius.status_code == 200
+    body = radius.json()
+    assert body["total"] == 0
+    assert body["listings"] == []
+    assert body["without_coordinates"] == 5
+    assert "left out of this radius" in body["note"]
 
-    wide = client.get("/search/listings", params={"location": "austin", "radius_miles": 2000})
-    places = {item["location"] for item in wide.json()["listings"]}
-    assert "Portland, OR" in places
-    assert "Japan" not in places
+    city = client.get("/search/listings", params={"location": "Austin, TX"})
+    assert city.status_code == 400
+    assert "not geocoded" in city.json()["detail"]
 
 
 def test_coordinates_and_unknown_location(client):
-    coords = client.get(
-        "/search/listings",
-        params={"lat": 30.2672, "lng": -97.7431, "radius_miles": 50},
-    )
-    assert coords.status_code == 200
-    assert coords.json()["center"]["resolved_by"] == "coordinates"
-    assert coords.json()["listings"][0]["make"] == "BMW"
-
     pair = client.get(
         "/search/listings",
         params={"location": "30.2672, -97.7431", "radius_miles": 50},
     )
     assert pair.status_code == 200
-    assert pair.json()["listings"][0]["location"] == "Austin, TX"
+    assert pair.json()["center"]["label"] == "30.2672, -97.7431"
+    assert pair.json()["total"] == 0
+    assert pair.json()["without_coordinates"] == 5
 
     missing = client.get("/search/listings", params={"location": "Nowhereville"})
     assert missing.status_code == 400
-    assert "fixture" in missing.json()["detail"]
+    assert "lat" in missing.json()["detail"]
 
     assert client.get("/search/listings", params={"lat": 30.2}).status_code == 400
 
@@ -56,8 +52,6 @@ def test_basic_filters(client):
     bmw = client.get(
         "/search/listings",
         params={
-            "location": "Austin, TX",
-            "radius_miles": 2500,
             "make": "BMW",
             "model": "M3",
             "year_min": 2000,
@@ -75,15 +69,6 @@ def test_basic_filters(client):
     assert none.status_code == 200
     assert none.json()["total"] == 0
     assert none.json()["center"] is None
-
-
-def test_places_are_labeled_fixture(client):
-    response = client.get("/search/places")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["source"] == "fixture_gazetteer"
-    labels = {place["label"] for place in body["places"]}
-    assert {"Austin, TX", "Denver, CO", "Atlanta, GA", "Japan"} <= labels
 
 
 def test_zip_and_region_do_not_need_a_city(client):
@@ -114,23 +99,45 @@ def test_adapter_uses_listing_id_region_zip_and_coordinates(monkeypatch):
         region = "tx"
         zip = "78701"
         listing_id = "manual:civic-1"
-        latitude = 30.27
-        longitude = -97.74
+        lat = 30.27
+        lng = -97.74
+
+    class Unmapped:
+        title = "No pin"
+        price = 8000
+        location = "Austin, TX"
+        listing_id = "manual:none"
+
+    class Far:
+        title = "Seattle"
+        price = 11000
+        listing_id = "manual:far"
+        lat = 47.6062
+        lng = -122.3321
 
     class Deal:
-        deal_id = "pipeline-id"
-        listing = Listing()
-        deal_score = 10
-        deal_tier = "pass"
+        def __init__(self, listing, deal_id):
+            self.deal_id = deal_id
+            self.listing = listing
+            self.deal_score = 10
+            self.deal_tier = "pass"
 
-    monkeypatch.setattr("backend.search.service.list_deals", lambda limit=1000: [Deal()])
+    monkeypatch.setattr(
+        "backend.search.service.list_deals",
+        lambda limit=1000: [
+            Deal(Listing(), "pipeline-id"),
+            Deal(Unmapped(), "no-pin"),
+            Deal(Far(), "far-id"),
+        ],
+    )
 
     hit = search_deals(region="TX", zip_code="78701").listings[0]
     assert hit.listing_id == "manual:civic-1"
     assert hit.deal_id == "pipeline-id"
     assert hit.region == "TX"
     assert hit.zip == "78701"
-    assert hit.geo_source == "listing"
+    assert hit.lat == 30.27
+    assert hit.lng == -97.74
 
     by_location_zip = search_deals(location="78701")
     assert by_location_zip.center is None
@@ -142,8 +149,10 @@ def test_adapter_uses_listing_id_region_zip_and_coordinates(monkeypatch):
     missed = search_deals(region="OR")
     assert missed.total == 0
 
-    near = search_deals(location="Austin, TX", radius_miles=50)
-    assert near.listings[0].geo_source == "listing"
+    near = search_deals(lat=30.2672, lng=-97.7431, radius_miles=50)
+    assert [item.listing_id for item in near.listings] == ["manual:civic-1"]
+    assert near.without_coordinates == 1
+    assert "left out of this radius" in near.note
     assert near.listings[0].distance_miles < 1
 
 
@@ -163,12 +172,10 @@ def test_adapter_prefers_coordinates_when_the_listing_has_them():
             location="Austin, TX",
         ),
     )
-    fixture = to_hit(payload)
-    assert fixture.geo_source == "fixture_gazetteer"
-    assert fixture.lat == 30.2672
+    plain = to_hit(payload)
+    assert plain.lat is None
+    assert plain.lng is None
 
-    # Stand-in for a listing that already carries coordinates. ListingData on
-    # main does not declare them; Builder's ingestion branch will.
     class Located:
         title = "2001 Example"
         price = 12000
@@ -176,21 +183,32 @@ def test_adapter_prefers_coordinates_when_the_listing_has_them():
         make = "BMW"
         model = "M3"
         mileage = 50000
+        location = "Denver, CO"
+        lat = 39.0
+        lng = -104.0
+
+    class CityOnly:
+        title = "City name only"
+        price = 9000
         location = "Austin, TX"
-        latitude = 39.0
-        longitude = -104.0
+        latitude = 30.27
+        longitude = -97.74
 
     class Deal:
-        deal_id = "located"
-        listing = Located()
-        deal_score = None
-        deal_tier = None
+        def __init__(self, listing, deal_id):
+            self.deal_id = deal_id
+            self.listing = listing
+            self.deal_score = None
+            self.deal_tier = None
 
-    listed = to_hit(Deal(), center=(39.0, -104.0))
-    assert listed.geo_source == "listing"
+    listed = to_hit(Deal(Located(), "located"), center=(39.0, -104.0))
     assert listed.lat == 39.0
     assert listed.lng == -104.0
     assert listed.distance_miles == 0.0
+
+    unnamed = to_hit(Deal(CityOnly(), "city"))
+    assert unnamed.lat is None
+    assert unnamed.lng is None
 
 
 def test_deals_feed_is_unchanged(client):
