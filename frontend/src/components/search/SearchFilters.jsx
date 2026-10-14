@@ -11,7 +11,7 @@ function Field({ label, children }) {
   );
 }
 
-export default function SearchFilters({ filters, places, onApply, onClear }) {
+export default function SearchFilters({ filters, onApply, onClear }) {
   const [draft, setDraft] = useState(filters);
 
   useEffect(() => {
@@ -34,16 +34,10 @@ export default function SearchFilters({ filters, places, onApply, onClear }) {
         <Field label="Location">
           <input
             className="input-dark"
-            list="deaven-places"
             value={draft.location}
-            placeholder="City, ZIP, region, or lat,lng"
+            placeholder="lat,lng, ZIP, or region"
             onChange={(event) => set('location', event.target.value)}
           />
-          <datalist id="deaven-places">
-            {(places ?? []).map((place) => (
-              <option key={place.label} value={place.label} />
-            ))}
-          </datalist>
         </Field>
         <Field label="Radius">
           <select

@@ -6,7 +6,7 @@ import ListingMap from '../components/search/ListingMap';
 import SearchFilters from '../components/search/SearchFilters';
 import ScoreBadge from '../components/ScoreBadge';
 import { formatDistance, formatMileage, formatPrice } from '../lib/formatters';
-import { getSearchPlaces, searchErrorMessage, searchListings } from '../lib/searchApi';
+import { searchErrorMessage, searchListings } from '../lib/searchApi';
 
 const FILTER_KEYS = [
   'location',
@@ -25,7 +25,7 @@ const FILTER_KEYS = [
 function readFilters(params) {
   const blank = [...params.keys()].length === 0;
   return {
-    location: blank ? 'Austin, TX' : params.get('location') ?? '',
+    location: blank ? '' : params.get('location') ?? '',
     radius_miles: params.get('radius_miles') || '1000',
     make: params.get('make') || '',
     model: params.get('model') || '',
@@ -54,11 +54,6 @@ export default function Search() {
   const [params, setParams] = useSearchParams();
   const filters = useMemo(() => readFilters(params), [params]);
 
-  const placesQuery = useQuery({
-    queryKey: ['search-places'],
-    queryFn: getSearchPlaces,
-  });
-
   const searchQuery = useQuery({
     queryKey: ['search', filters],
     queryFn: () => searchListings(filters),
@@ -79,13 +74,13 @@ export default function Search() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-100">Search</h1>
         <p className="max-w-2xl text-sm text-zinc-500">
-          Radius search over ingested listings. Open a result for the existing deal page.
+          Radius search uses each listing&apos;s coordinates. A listing without lat/lng
+          is left off the map and out of a radius.
         </p>
       </div>
 
       <SearchFilters
         filters={filters}
-        places={placesQuery.data?.places}
         onApply={apply}
         onClear={() =>
           apply({
@@ -105,6 +100,9 @@ export default function Search() {
 
       <p className="font-mono text-xs text-zinc-500">
         {searchQuery.isLoading ? 'Searching…' : searchQuery.isError ? 'Search unavailable' : summary}
+        {!searchQuery.isLoading && !searchQuery.isError && searchQuery.data?.note
+          ? ` · ${searchQuery.data.note}`
+          : ''}
       </p>
 
       {searchQuery.isError && (
@@ -148,7 +146,7 @@ export default function Search() {
                       {listing.listing_id && (
                         <span className="font-mono">{listing.listing_id}</span>
                       )}
-                      {listing.geo_source === 'fixture_gazetteer' && <span>Fixture pin</span>}
+                      {listing.lat == null && <span>No coordinates</span>}
                     </p>
                   </div>
                   <span className="shrink-0 font-mono text-lg font-semibold text-deaven-gold">

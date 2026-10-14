@@ -99,10 +99,7 @@ export default function ListingMap({ listings, center, radiusMiles, className = 
       })}
 
       <p className="pointer-events-none absolute bottom-2 left-2 right-2 text-[11px] text-zinc-500">
-        Simple lat/lng projection.
-        {mappable.some((item) => item.geo_source === 'fixture_gazetteer')
-          ? ' Pins use the fixture city list until listings store coordinates.'
-          : ''}
+        Pins are listing coordinates. Listings without lat/lng are not placed.
       </p>
     </div>
   );

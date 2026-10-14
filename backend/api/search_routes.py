@@ -6,8 +6,8 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.search.service import UnresolvedLocation, places, search_deals
-from shared.schemas.search import PlacesResponse, SearchResponse
+from backend.search.service import UnresolvedLocation, search_deals
+from shared.schemas.search import SearchResponse
 
 router = APIRouter(tags=["search"])
 
@@ -51,15 +51,7 @@ async def search_listings(
             status_code=400,
             detail=(
                 f"Could not resolve location '{exc.location}'. "
-                "Pass lat and lng, a 'lat,lng' pair, a ZIP, a region code such as "
-                "'TX', or a fixture place such as 'Austin, TX'."
+                "Pass lat and lng or a 'lat,lng' pair. A ZIP or a region code "
+                "such as 'TX' filters those listing fields. City names are not geocoded."
             ),
         ) from exc
-
-
-@router.get("/search/places", response_model=PlacesResponse)
-async def search_places():
-    return PlacesResponse(
-        note="Fixture city list for the location field. Not a live geocoder.",
-        places=places(),
-    )
