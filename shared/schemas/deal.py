@@ -5,11 +5,15 @@ This is the single source of truth across the entire pipeline.
 """
 
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 import uuid
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 # ─── Enums ────────────────────────────────────────────────────────────────────
@@ -180,11 +184,13 @@ class OutreachDraft(BaseModel):
 # ─── Core Deal Payload ────────────────────────────────────────────────────────
 
 class DealPayload(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     # Identity
     deal_id:     str          = Field(default_factory=lambda: str(uuid.uuid4()))
     source:      DealSource
     url:         str
-    ingested_at: datetime     = Field(default_factory=datetime.utcnow)
+    ingested_at: datetime     = Field(default_factory=_utc_now)
 
     # Raw listing
     listing:     ListingData
@@ -216,8 +222,12 @@ class DealPayload(BaseModel):
     outcome_margin_actual:  Optional[float] = None
     outcome_lemon:          bool            = False
 
-    class Config:
-        use_enum_values = True
+    @field_serializer("ingested_at", when_used="json")
+    def _serialize_ingested_at(self, value: datetime) -> str:
+        # UTC stays offset-less so JSON matches the previous naive utcnow() shape.
+        if value.utcoffset() == timedelta(0):
+            return value.replace(tzinfo=None).isoformat()
+        return value.isoformat()
 
 
 # ─── Watchlist Filters ────────────────────────────────────────────────────────
