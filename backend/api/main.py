@@ -13,6 +13,8 @@ Contract matches `Deaven API - Swagger UI.pdf`:
   DELETE /watchlists/{filter_id}
   GET  /stats/pipeline
   POST /scout/run
+  POST /compare
+  GET  /compare?ids=
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from backend.api.compare_routes import router as compare_router
 from backend.core.settings import (
     alert_webhook_url,
     cors_origins,
@@ -97,6 +100,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(compare_router)
 
 
 # ─── Request/Response Models ──────────────────────────────────────────────────

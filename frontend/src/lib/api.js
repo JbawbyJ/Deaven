@@ -61,4 +61,9 @@ export async function runScout(filterId) {
   return data;
 }
 
+export async function compareListings(ids) {
+  const { data } = await api.post('/compare', { ids });
+  return data;
+}
+
 export default api;

@@ -1,7 +1,7 @@
 """
 Side-by-side comparison of listings already priced by this lane.
 
-No HTTP route. Builder 3 owns the screen and can call compare directly.
+POST /compare and GET /compare?ids= load stored listings and call compare.
 """
 
 from __future__ import annotations
