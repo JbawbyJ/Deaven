@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed>
+  <record>
+    <vin>1HGCM82633A004352</vin>
+    <year>2003</year>
+    <make>BMW</make>
+    <model>M3</model>
+    <trim>Coupe</trim>
+    <mileage>62210</mileage>
+    <asking_price>30100</asking_price>
+    <sold_price>28000</sold_price>
+    <currency>USD</currency>
+    <listing_url>https://feeds.example/xml/bmw</listing_url>
+    <city>Austin</city>
+    <region>TX</region>
+    <postal_code>78701</postal_code>
+    <country>US</country>
+    <title>2003 BMW M3 Coupe</title>
+  </record>
+  <record>
+    <year>1993</year>
+    <make>Mazda</make>
+    <model>RX-7</model>
+    <trim>Touring</trim>
+    <mileage>78400</mileage>
+    <asking_price>32500</asking_price>
+    <sold_price>30000</sold_price>
+    <currency>USD</currency>
+    <listing_url>https://feeds.example/xml/rx7</listing_url>
+    <city>Portland</city>
+    <region>OR</region>
+    <postal_code>97202</postal_code>
+    <country>US</country>
+    <title>1993 Mazda RX-7 Touring</title>
+  </record>
+</feed>

@@ -1,0 +1,25 @@
+{
+  "records": [
+    {
+      "vehicle_id": "rec-bmw",
+      "vin": "1hg-cm82633-a004352",
+      "year": 2003,
+      "make": "BMW",
+      "model": "M3",
+      "trim": "Coupe",
+      "odometer": 62210,
+      "asking_price": "32950.00",
+      "sold_price": "31000.00",
+      "currency": "USD",
+      "title": "2003 BMW M3 Coupe",
+      "listing_url": "https://feeds.example/listings/rec-bmw",
+      "city": "Austin",
+      "region": "TX",
+      "postal_code": "78701",
+      "country": "US",
+      "photo_url": "https://img.example/feed-m3.jpg"
+    }
+  ],
+  "page": 1,
+  "next_page": 2
+}

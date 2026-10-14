@@ -1,0 +1,30 @@
+{
+  "records": [
+    {
+      "vehicle_id": "rec-honda",
+      "vin": "1M8GDM9AXKP042788",
+      "year": 1988,
+      "make": "Honda",
+      "model": "Prelude",
+      "trim": "Si",
+      "odometer": 91000,
+      "asking_price": 42000,
+      "sold_price": null,
+      "currency": "USD",
+      "title": "1988 Honda Prelude Si",
+      "listing_url": "https://feeds.example/listings/rec-honda",
+      "city": "Austin",
+      "region": "TX",
+      "postal_code": "78701",
+      "country": "US"
+    },
+    {
+      "vehicle_id": "rec-incomplete",
+      "year": 2001,
+      "make": "Honda",
+      "model": "Beat"
+    }
+  ],
+  "page": 2,
+  "next_page": null
+}

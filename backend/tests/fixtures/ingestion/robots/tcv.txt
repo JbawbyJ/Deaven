@@ -1,0 +1,6 @@
+User-agent: DeavenListingBot
+Disallow: /mypage/
+Allow: /used_car/
+
+User-agent: *
+Disallow: /
