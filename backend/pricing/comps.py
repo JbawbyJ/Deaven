@@ -90,7 +90,8 @@ class ClusterResult:
 
     deal_score is (estimate - asking) / estimate. Positive means the ask is
     below the estimate. None when there is no estimate.
-    deal_rating reuses rate_deal and keeps only great/good/fair/high.
+    deal_rating reuses rate_deal. great/good/fair/high pass through,
+    overpriced maps to high, and only unknown maps to null.
     """
 
     deal_score: float | None
@@ -111,6 +112,15 @@ class PricedCluster:
 
 
 _UI_RATINGS = frozenset({"great", "good", "fair", "high"})
+
+
+def _ui_rating(legacy: str) -> str | None:
+    """Map rate_deal onto great/good/fair/high/null. overpriced becomes high."""
+    if legacy == "overpriced":
+        return "high"
+    if legacy in _UI_RATINGS:
+        return legacy
+    return None
 
 
 @dataclass(frozen=True)
@@ -224,7 +234,7 @@ def _assess(
 def _cluster_result(assessment: PriceAssessment, asking: float) -> ClusterResult:
     mid = assessment.estimate
     score = None if mid is None or mid <= 0 else (mid - asking) / mid
-    rating = assessment.rating if assessment.rating in _UI_RATINGS else None
+    rating = _ui_rating(assessment.rating)
     return ClusterResult(
         deal_score=score,
         deal_rating=rating,

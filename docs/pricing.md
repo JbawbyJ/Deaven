@@ -7,14 +7,14 @@
 | Field | Type | Meaning |
 |---|---|---|
 | `deal_score` | float or null | `(estimate.mid - asking) / estimate.mid`. Positive means the asking price is below the estimate. Null when there is no estimate. |
-| `deal_rating` | `great`, `good`, `fair`, `high`, or null | `rate_deal` from `backend/pricing/value.py`, mapped onto these four names. `overpriced` and `unknown` become null. |
+| `deal_rating` | `great`, `good`, `fair`, `high`, or null | `rate_deal` from `backend/pricing/value.py`. `great`, `good`, `fair`, and `high` pass through. `overpriced` maps to `high`. Only `unknown` maps to null. |
 | `estimate` | `{low, mid, high}` | All three amounts are in the listing currency. `mid` is the cohort median. `low` and `high` are the 25th and 75th percentiles of the same adjusted comps. Nulls when there is no estimate. |
 | `confidence` | float 0–1 | Comp count, spread, and cohort match. This is not the high/medium/low string on `MarketValue`. |
 | `comp_count` | int | Comp **clusters** that entered the estimate, after `vehicle_key` collapse. A car listed on BaT and eBay counts as one. |
 
 `cluster_result(subject, comps, prices=None)` is the same object for one subject. Asking price is the cluster's current ask: the latest `asking` observation, otherwise the listing price. No API route and no frontend change. `DealPayload` is unchanged.
 
-`rate_deal` itself still returns `great` / `good` / `fair` / `high` / `overpriced` / `unknown`. Thresholds stay in `value.py`: great ≤ −15% ask versus estimate, good ≤ −5%, fair ≤ +5%, high ≤ +15%, else overpriced. The UI mapping drops `overpriced` and `unknown` to null. Sign is flipped on purpose: #2's internal delta is `(asking - estimate) / estimate` (negative is cheap); `deal_score` is the opposite so a sort descending on `deal_score` puts the cheapest asks first.
+`rate_deal` itself still returns `great` / `good` / `fair` / `high` / `overpriced` / `unknown`. Thresholds stay in `value.py`: great ≤ −15% ask versus estimate, good ≤ −5%, fair ≤ +5%, high ≤ +15%, else overpriced. The per-cluster `deal_rating` keeps `great`, `good`, `fair`, and `high` as-is, maps `overpriced` to `high`, and maps only `unknown` to null. Sign is flipped on purpose: #2's internal delta is `(asking - estimate) / estimate` (negative is cheap); `deal_score` is the opposite so a sort descending on `deal_score` puts the cheapest asks first.
 
 This lane is stacked on the comp-based estimate in `docs/pricing/PLAN.md` (`backend/pricing/value.py`). That estimate is unchanged: the median of mileage- and age-adjusted comps in the narrowest cohort, plus the categorical confidence and the deal rating. Call `estimate_value` and `rate_deal` for that behavior.
 

@@ -333,7 +333,7 @@ def test_cluster_result_is_the_ui_contract_and_reuses_rate_deal():
     flat = [_facts(listing_id=f"f{i}", price=10_000, vin=vin) for i, vin in enumerate(vins)]
     over = cluster_result(rich, flat)
     assert rate_deal(12_000, 10_000) == "overpriced"
-    assert over.deal_rating is None
+    assert over.deal_rating == "high"
     assert over.deal_score == (10_000 - 12_000) / 10_000
     assert over.estimate.mid == 10_000
 
@@ -343,6 +343,23 @@ def test_cluster_result_is_the_ui_contract_and_reuses_rate_deal():
     assert none.estimate == Estimate(None, None, None)
     assert none.confidence == 0.0
     assert none.comp_count == 0
+
+
+def test_overpriced_maps_to_high_and_unknown_stays_null():
+    vins = [VIN_A, VIN_B, VIN_C, VIN_D, VIN_E]
+    comps = [_facts(listing_id=f"f{i}", price=10_000, vin=vin) for i, vin in enumerate(vins)]
+    at_high = cluster_result(_facts(listing_id="at-high", price=11_500, vin=VIN_F), comps)
+    over = cluster_result(_facts(listing_id="over", price=11_501, vin=VIN_G), comps)
+    assert rate_deal(11_500, 10_000) == "high"
+    assert at_high.deal_rating == "high"
+    assert at_high.estimate.mid == 10_000
+    assert rate_deal(11_501, 10_000) == "overpriced"
+    assert over.deal_rating == "high"
+    assert over.deal_score == (10_000 - 11_501) / 10_000
+    missing = cluster_result(_facts(listing_id="none", price=11_501, vin=VIN_F), [])
+    assert rate_deal(11_501, None) == "unknown"
+    assert missing.deal_rating is None
+    assert missing.deal_score is None
 
 
 def test_price_clusters_counts_the_bat_ebay_pair_once():
