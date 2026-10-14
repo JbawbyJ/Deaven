@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
+import Compare from './pages/Compare';
 import DealDetail from './pages/DealDetail';
 import Pipeline from './pages/Pipeline';
 import Watchlist from './pages/Watchlist';
@@ -13,6 +14,7 @@ export default function App() {
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/compare" element={<Compare />} />
             <Route path="/deals/:id" element={<DealDetail />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/pipeline" element={<Pipeline />} />

@@ -5,6 +5,7 @@
 
 # Local MVP JSON store
 backend/data/local_store.json
+backend/data/price_history.json
 backend/data/*.json.tmp
 
 # Python
