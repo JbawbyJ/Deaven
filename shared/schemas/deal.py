@@ -79,8 +79,9 @@ class ListingData(BaseModel):
     units (dollars when `currency` is USD), matching the existing `price`
     field. `listing_id` is `{source}:{source_id}` when those parts are known.
     A present `vin` is stored uppercase and must pass the ISO 3779 check digit.
-    `trim_normalized` is always derived from `trim`. `canonical_id` is set
-    when records have been merged; it stays empty on a single source row.
+    `trim_normalized` is always derived from `trim`. `canonical_id` stays
+    empty until dedupe assigns one; every source row in a cluster keeps its
+    own fields and shares that id.
     `lat` and `lng` are optional. Source coordinates are kept. If both are
     missing and `zip` is in the offline centroid table, those centroids are
     filled in. Unknown zips leave both null.
