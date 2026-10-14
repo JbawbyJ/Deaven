@@ -84,9 +84,12 @@ export function tierBgClass(tier) {
 export function formatDeltaPct(fraction) {
   if (fraction == null || Number.isNaN(Number(fraction))) return '—';
   const value = Number(fraction);
-  const amount = Math.abs(value * 100);
-  const text = `${amount.toFixed(1)}%`;
-  if (amount < 0.05) return '0.0%';
+  // One decimal on the percent. Round via basis points so 0.2195 is 22.0%,
+  // not 21.9% from a binary float.
+  const basis = Math.round(Math.abs(value) * 10000);
+  const tenths = Math.round(basis / 10);
+  if (tenths === 0) return '0.0%';
+  const text = `${(tenths / 10).toFixed(1)}%`;
   if (value < 0) return `${text} under`;
   return `${text} over`;
 }
