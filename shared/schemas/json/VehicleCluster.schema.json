@@ -1,0 +1,40 @@
+{
+  "$defs": {
+    "MatchMethod": {
+      "enum": [
+        "vin",
+        "fuzzy",
+        "singleton"
+      ],
+      "title": "MatchMethod",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Listings that share a vehicle_key. match_method is vin or fuzzy.",
+  "properties": {
+    "listing_ids": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Listing Ids",
+      "type": "array"
+    },
+    "match_method": {
+      "$ref": "#/$defs/MatchMethod"
+    },
+    "vehicle_key": {
+      "minLength": 1,
+      "title": "Vehicle Key",
+      "type": "string"
+    }
+  },
+  "required": [
+    "vehicle_key",
+    "listing_ids",
+    "match_method"
+  ],
+  "title": "VehicleCluster",
+  "type": "object"
+}

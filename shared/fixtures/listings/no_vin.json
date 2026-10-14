@@ -1,0 +1,26 @@
+{
+  "year": 1993,
+  "make": "Mazda",
+  "model": "RX-7",
+  "trim": "Touring",
+  "mileage": 78400,
+  "price": 32500,
+  "currency": "USD",
+  "location": {
+    "label": "Portland, OR 97202",
+    "city": "Portland",
+    "region": "OR",
+    "country": "US"
+  },
+  "seller_type": "marketplace",
+  "source": "hemmings",
+  "source_url": "https://www.hemmings.com/listing/deaven-demo-1993-mazda-rx7",
+  "title": "1993 Mazda RX-7 Touring",
+  "photos": [],
+  "first_seen": "2026-06-01T00:00:00Z",
+  "last_seen": "2026-06-10T00:00:00Z",
+  "fetched_at": "2026-06-10T00:00:00Z",
+  "payload": {
+    "note": "Made-up listing with no VIN."
+  }
+}

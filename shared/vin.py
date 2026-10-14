@@ -81,3 +81,16 @@ def is_valid_vin(value: str | None) -> bool:
     except VinError:
         return False
     return True
+
+
+def vin_key(raw: str) -> str | None:
+    """Return the normalized VIN, or None when it is invalid.
+
+    Confirmed signature: vin_key(raw: str) -> str | None.
+    """
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        return validate_vin(raw)
+    except VinError:
+        return None

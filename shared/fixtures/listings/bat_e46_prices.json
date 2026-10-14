@@ -1,0 +1,23 @@
+[
+  {
+    "listing_id": "bd8f0e137da82645",
+    "observed_at": "2026-07-01T00:00:00Z",
+    "amount": 34800,
+    "currency": "USD",
+    "kind": "asking"
+  },
+  {
+    "listing_id": "bd8f0e137da82645",
+    "observed_at": "2026-07-15T18:30:00Z",
+    "amount": 30500,
+    "currency": "USD",
+    "kind": "bid"
+  },
+  {
+    "listing_id": "bd8f0e137da82645",
+    "observed_at": "2026-08-01T00:00:00Z",
+    "amount": 31200,
+    "currency": "USD",
+    "kind": "asking"
+  }
+]
