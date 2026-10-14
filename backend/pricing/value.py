@@ -2,8 +2,7 @@
 Fair-price estimate and deal rating.
 
 Reads shared.schemas.deal.ListingData through facts_from_listing.
-That function is the swap point for Builder's listing schema
-(agent/builder/deaven-ingestion), which was not published yet.
+That function is the swap point for Builder's listing schema.
 This module does not store a second listing schema and does not scrape.
 """
 
@@ -69,22 +68,31 @@ def facts_from_listing(
     *,
     region: str | None = None,
 ) -> ListingFacts:
-    """Copy the pricing fields off a ListingData record.
+    """Copy the pricing fields off a listing record.
 
-    Region comes from the override, otherwise from a state code in
-    listing.location. Zip is not a ListingData field.
+    Uses region, asking_price, trim_normalized, and listing_id when the
+    record has them. Otherwise falls back to the region argument, price,
+    trim, and the listing_id argument. location is a display string and
+    is not parsed.
     """
-    resolved = region or _region_from_location(listing.location)
+    resolved_id = _text(_field(listing, "listing_id")) or listing_id.strip()
+    if not resolved_id:
+        raise ValueError("listing_id is required")
+    asking = _field(listing, "asking_price")
+    price = _field(listing, "price") if asking is None else asking
+    if price is None:
+        raise ValueError("price is required")
+    vin = _text(_field(listing, "vin"))
     return ListingFacts(
-        listing_id=listing_id,
-        price=float(listing.price),
-        make=listing.make,
-        model=listing.model,
-        trim=listing.trim,
-        year=listing.year,
-        mileage=listing.mileage,
-        region=_canon_region(resolved),
-        vin=(listing.vin or "").strip().upper() or None,
+        listing_id=resolved_id,
+        price=float(price),
+        make=_field(listing, "make"),
+        model=_field(listing, "model"),
+        trim=_text(_field(listing, "trim_normalized")) or _text(_field(listing, "trim")),
+        year=_field(listing, "year"),
+        mileage=_field(listing, "mileage"),
+        region=_canon_region(_text(_field(listing, "region")) or _text(region)),
+        vin=vin.upper() if vin else None,
     )
 
 
@@ -228,6 +236,17 @@ def _token(value: str | None) -> str:
     return " ".join((value or "").split()).casefold()
 
 
+def _field(listing: ListingData, name: str):
+    return getattr(listing, name, None)
+
+
+def _text(value) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 def _canon_region(value: str | None) -> str | None:
     if not value:
         return None
@@ -235,17 +254,3 @@ def _canon_region(value: str | None) -> str | None:
     if len(text) == 2 and text.isalpha():
         return text.upper()
     return text or None
-
-
-def _region_from_location(location: str | None) -> str | None:
-    if not location:
-        return None
-    parts = [part.strip() for part in location.split(",") if part.strip()]
-    tokens = (parts[-1] if parts else location).split()
-    while tokens and tokens[-1][0].isdigit():
-        tokens.pop()
-    if not tokens:
-        return None
-    if len(tokens[-1]) == 2 and tokens[-1].isalpha():
-        return tokens[-1].upper()
-    return " ".join(tokens)

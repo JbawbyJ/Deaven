@@ -54,15 +54,40 @@ def test_facts_from_listing_reads_listing_data():
     assert facts.trim == "Coupe"
     assert facts.year == 2003
     assert facts.mileage == 62_000
-    assert facts.region == "TX"
+    assert facts.region is None
     assert facts.vin == "WBSBL93453JR00001"
 
 
-def test_region_override_and_non_us_location():
+def test_region_comes_from_the_field_or_the_argument():
     austin = ListingData(title="M3", price=1, location="Austin, TX 78701")
     japan = ListingData(title="Supra", price=1, location="Japan")
+    assert facts_from_listing(austin, "a").region is None
     assert facts_from_listing(austin, "a", region="ca").region == "CA"
-    assert facts_from_listing(japan, "b").region == "Japan"
+    assert facts_from_listing(japan, "b").region is None
+
+
+def test_builder_fields_win_when_present():
+    from types import SimpleNamespace
+
+    listing = SimpleNamespace(
+        listing_id="bat:99",
+        asking_price=31_000,
+        price=99_000,
+        trim="Coupe",
+        trim_normalized="coupe",
+        region="tx",
+        make="BMW",
+        model="M3",
+        year=2003,
+        mileage=10_000,
+        vin=" abc ",
+        location="Austin, TX 78701",
+    )
+    facts = facts_from_listing(listing, "fallback", region="CA")
+    assert facts.listing_id == "bat:99"
+    assert facts.price == 31_000
+    assert facts.trim == "coupe"
+    assert facts.region == "TX"
 
 
 def test_estimate_is_median_of_tight_cohort():
