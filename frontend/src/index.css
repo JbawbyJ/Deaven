@@ -49,4 +49,27 @@
   .panel {
     @apply rounded-lg border border-deaven-border bg-deaven-surface;
   }
+
+  .listing-map-canvas {
+    height: 420px;
+    width: 100%;
+    background: #0a0a0a;
+  }
+
+  .listing-map-canvas .leaflet-pane,
+  .listing-map-canvas .leaflet-top,
+  .listing-map-canvas .leaflet-bottom {
+    z-index: 1;
+  }
+
+  .listing-marker {
+    background: #c9a84c;
+    border: 2px solid #0a0a0a;
+    border-radius: 999px;
+  }
+
+  .listing-marker.is-selected {
+    background: #ef4444;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.35);
+  }
 }
