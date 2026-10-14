@@ -5,11 +5,19 @@ This is the single source of truth across the entire pipeline.
 """
 
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, Field
+import re
+from typing import Any, Optional
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 import uuid
+
+from shared.vin import VinError, validate_vin
+from shared.zip_centroids import centroid_for_zip
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 # ─── Enums ────────────────────────────────────────────────────────────────────
@@ -53,16 +61,57 @@ class ConditionGrade(str, Enum):
 
 # ─── Raw Listing ──────────────────────────────────────────────────────────────
 
+_TRIM_SEPARATOR = re.compile(r"[^\w]+", re.UNICODE)
+
+
+def normalize_trim(value: Optional[str]) -> Optional[str]:
+    """Lowercase a trim and collapse whitespace and punctuation to one space.
+
+    There is no curated trim vocabulary. "SZ-R" becomes "sz r".
+    """
+    if value is None:
+        return None
+    parts = [part for part in _TRIM_SEPARATOR.split(value.lower().replace("_", " ")) if part]
+    collapsed = " ".join(parts)
+    return collapsed or None
+
+
 class ListingData(BaseModel):
+    """Source listing facts shared with pricing and the UI.
+
+    `price` and `asking_price` are the same asking amount in major currency
+    units (dollars when `currency` is USD), matching the existing `price`
+    field. `listing_id` is `{source}:{source_id}` when those parts are known.
+    A present `vin` is stored uppercase and must pass the ISO 3779 check digit.
+    `trim_normalized` is always derived from `trim`. `canonical_id` stays
+    empty until dedupe assigns one; every source row in a cluster keeps its
+    own fields and shares that id.
+    `lat` and `lng` are optional. Source coordinates are kept. If both are
+    missing and `zip` is in the offline centroid table, those centroids are
+    filled in. Unknown zips leave both null.
+    """
+
     title:        str
     price:        float
+    asking_price: Optional[float] = None
+    sold_price:   Optional[float] = None
+    sold_at:      Optional[datetime] = None
+    currency:     str = "USD"
+
     mileage:      Optional[int]    = None
     year:         Optional[int]    = None
     make:         Optional[str]    = None
     model:        Optional[str]    = None
     trim:         Optional[str]    = None
+    trim_normalized: Optional[str] = None
     vin:          Optional[str]    = None
-    location:     Optional[str]    = None
+
+    location:     Optional[str]    = None   # display string, e.g. "Austin, TX"
+    region:       Optional[str]    = None   # state/province code
+    zip:          Optional[str]    = None
+    lat:          Optional[float]  = Field(default=None, ge=-90, le=90)
+    lng:          Optional[float]  = Field(default=None, ge=-180, le=180)
+
     description:  Optional[str]    = None
     seller_type:  Optional[str]    = None   # "private" | "dealer"
     listing_date: Optional[datetime] = None
@@ -73,6 +122,132 @@ class ListingData(BaseModel):
     color_int:    Optional[str]    = None
     transmission: Optional[str]    = None
     drivetrain:   Optional[str]    = None
+
+    source:       Optional[str]    = None
+    source_id:    Optional[str]    = None
+    listing_id:   Optional[str]    = None   # "{source}:{source_id}"
+    canonical_id: Optional[str]    = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _asking_price_alias(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or "asking_price" not in data:
+            return data
+        incoming = dict(data)
+        asking = incoming.get("asking_price")
+        if asking is None:
+            return incoming
+        if incoming.get("price") is None:
+            incoming["price"] = asking
+        elif float(asking) != float(incoming["price"]):
+            raise ValueError("asking_price must match price")
+        return incoming
+
+    @field_validator("vin", mode="before")
+    @classmethod
+    def _vin(cls, value: Any) -> Optional[str]:
+        if value is None or not str(value).strip():
+            return None
+        try:
+            return validate_vin(str(value))
+        except VinError as exc:
+            raise ValueError(str(exc)) from exc
+
+    @field_validator("trim", "location", "zip", "canonical_id", "source_id", "listing_id", mode="before")
+    @classmethod
+    def _blank_to_none(cls, value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @field_validator("region", mode="before")
+    @classmethod
+    def _region(cls, value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        if len(text) == 2 and text.isalpha():
+            return text.upper()
+        return text
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def _source(cls, value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, Enum):
+            value = value.value
+        text = str(value).strip()
+        if not text:
+            return None
+        if ":" in text:
+            raise ValueError("source must not contain ':'")
+        return text
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def _currency(cls, value: Any) -> str:
+        if value is None or not str(value).strip():
+            return "USD"
+        code = str(value).strip().upper()
+        if len(code) != 3 or not code.isalpha():
+            raise ValueError("currency must be a 3-letter ISO code")
+        return code
+
+    @model_validator(mode="after")
+    def _derived_fields(self) -> "ListingData":
+        self.trim_normalized = normalize_trim(self.trim)
+        if self.asking_price is None:
+            self.asking_price = self.price
+        self.listing_id = _compose_listing_id(self.source, self.source_id, self.listing_id)
+        if self.listing_id:
+            source, source_id = self.listing_id.split(":", 1)
+            self.source = source
+            self.source_id = source_id
+        _fill_coordinates(self)
+        return self
+
+
+def _compose_listing_id(
+    source: Optional[str],
+    source_id: Optional[str],
+    listing_id: Optional[str],
+) -> Optional[str]:
+    if source and source_id:
+        composed = f"{source}:{source_id}"
+        if listing_id and listing_id != composed:
+            raise ValueError("listing_id must be '{source}:{source_id}'")
+        return composed
+    if not listing_id:
+        return None
+    if ":" not in listing_id:
+        raise ValueError("listing_id must be '{source}:{source_id}'")
+    parsed_source, parsed_id = listing_id.split(":", 1)
+    if not parsed_source or not parsed_id:
+        raise ValueError("listing_id must be '{source}:{source_id}'")
+    if source and source != parsed_source:
+        raise ValueError("listing_id must be '{source}:{source_id}'")
+    if source_id and source_id != parsed_id:
+        raise ValueError("listing_id must be '{source}:{source_id}'")
+    if ":" in parsed_source:
+        raise ValueError("source must not contain ':'")
+    return listing_id
+
+
+def _fill_coordinates(listing: ListingData) -> None:
+    has_lat = listing.lat is not None
+    has_lng = listing.lng is not None
+    if has_lat != has_lng:
+        raise ValueError("lat and lng must be set together")
+    if has_lat or not listing.zip:
+        return
+    found = centroid_for_zip(listing.zip)
+    if found is None:
+        return
+    listing.lat, listing.lng = found
 
 
 # ─── Agent Reports ────────────────────────────────────────────────────────────
@@ -180,11 +355,13 @@ class OutreachDraft(BaseModel):
 # ─── Core Deal Payload ────────────────────────────────────────────────────────
 
 class DealPayload(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     # Identity
     deal_id:     str          = Field(default_factory=lambda: str(uuid.uuid4()))
     source:      DealSource
     url:         str
-    ingested_at: datetime     = Field(default_factory=datetime.utcnow)
+    ingested_at: datetime     = Field(default_factory=_utc_now)
 
     # Raw listing
     listing:     ListingData
@@ -216,8 +393,12 @@ class DealPayload(BaseModel):
     outcome_margin_actual:  Optional[float] = None
     outcome_lemon:          bool            = False
 
-    class Config:
-        use_enum_values = True
+    @field_serializer("ingested_at", when_used="json")
+    def _serialize_ingested_at(self, value: datetime) -> str:
+        # UTC stays offset-less so JSON matches the previous naive utcnow() shape.
+        if value.utcoffset() == timedelta(0):
+            return value.replace(tzinfo=None).isoformat()
+        return value.isoformat()
 
 
 # ─── Watchlist Filters ────────────────────────────────────────────────────────
