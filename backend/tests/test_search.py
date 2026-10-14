@@ -13,6 +13,7 @@ def test_radius_search_uses_fixture_cities(client):
     assert {item["location"] for item in body["listings"]} == {"Austin, TX"}
     assert body["listings"][0]["make"] == "BMW"
     assert body["listings"][0]["geo_source"] == "fixture_gazetteer"
+    assert body["listings"][0]["listing_id"] is None
     assert "fixture city gazetteer" in body["note"]
 
     regional = client.get(
@@ -83,6 +84,67 @@ def test_places_are_labeled_fixture(client):
     assert body["source"] == "fixture_gazetteer"
     labels = {place["label"] for place in body["places"]}
     assert {"Austin, TX", "Denver, CO", "Atlanta, GA", "Japan"} <= labels
+
+
+def test_zip_and_region_do_not_need_a_city(client):
+    by_zip = client.get("/search/listings", params={"location": "78701"})
+    assert by_zip.status_code == 200
+    assert by_zip.json()["center"] is None
+    assert by_zip.json()["total"] == 0
+
+    by_region = client.get("/search/listings", params={"region": "tx"})
+    assert by_region.status_code == 200
+    assert by_region.json()["total"] == 0
+
+    unknown = client.get("/search/listings", params={"location": "Nowhereville"})
+    assert unknown.status_code == 400
+
+
+def test_adapter_uses_listing_id_region_zip_and_coordinates(monkeypatch):
+    from backend.search.service import search_deals
+
+    class Listing:
+        title = "1998 Example"
+        price = 10000
+        year = 1998
+        make = "Honda"
+        model = "Civic"
+        mileage = 1000
+        location = "Austin, TX"
+        region = "tx"
+        zip = "78701"
+        listing_id = "manual:civic-1"
+        latitude = 30.27
+        longitude = -97.74
+
+    class Deal:
+        deal_id = "pipeline-id"
+        listing = Listing()
+        deal_score = 10
+        deal_tier = "pass"
+
+    monkeypatch.setattr("backend.search.service.list_deals", lambda limit=1000: [Deal()])
+
+    hit = search_deals(region="TX", zip_code="78701").listings[0]
+    assert hit.listing_id == "manual:civic-1"
+    assert hit.deal_id == "pipeline-id"
+    assert hit.region == "TX"
+    assert hit.zip == "78701"
+    assert hit.geo_source == "listing"
+
+    by_location_zip = search_deals(location="78701")
+    assert by_location_zip.center is None
+    assert [item.listing_id for item in by_location_zip.listings] == ["manual:civic-1"]
+
+    by_region = search_deals(location="tx")
+    assert [item.listing_id for item in by_region.listings] == ["manual:civic-1"]
+
+    missed = search_deals(region="OR")
+    assert missed.total == 0
+
+    near = search_deals(location="Austin, TX", radius_miles=50)
+    assert near.listings[0].geo_source == "listing"
+    assert near.listings[0].distance_miles < 1
 
 
 def test_adapter_prefers_coordinates_when_the_listing_has_them():

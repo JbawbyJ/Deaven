@@ -89,7 +89,7 @@ export default function ListingMap({ listings, center, radiusMiles, className = 
         const point = project(listing.lat, listing.lng, bounds);
         return (
           <Link
-            key={listing.deal_id}
+            key={listing.listing_id || listing.deal_id}
             to={`/deals/${listing.deal_id}`}
             title={`${listing.title} · ${formatPrice(listing.price)}`}
             className="absolute z-10 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-deaven-gold shadow-[0_0_0_3px_rgba(201,168,76,0.35)]"

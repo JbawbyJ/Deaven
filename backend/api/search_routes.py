@@ -25,6 +25,8 @@ async def search_listings(
     price_min: Optional[float] = None,
     price_max: Optional[float] = None,
     mileage_max: Optional[int] = None,
+    region: Optional[str] = None,
+    zip: Optional[str] = None,
     limit: int = Query(default=100, ge=1, le=200),
 ):
     try:
@@ -40,6 +42,8 @@ async def search_listings(
             price_min=price_min,
             price_max=price_max,
             mileage_max=mileage_max,
+            region=region,
+            zip_code=zip,
             limit=limit,
         )
     except UnresolvedLocation as exc:
@@ -47,8 +51,8 @@ async def search_listings(
             status_code=400,
             detail=(
                 f"Could not resolve location '{exc.location}'. "
-                "Pass lat and lng, a 'lat,lng' pair, or a fixture place such as "
-                "'Austin, TX'. Ingestion does not store coordinates yet."
+                "Pass lat and lng, a 'lat,lng' pair, a ZIP, a region code such as "
+                "'TX', or a fixture place such as 'Austin, TX'."
             ),
         ) from exc
 

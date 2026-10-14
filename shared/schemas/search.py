@@ -8,6 +8,9 @@ from pydantic import BaseModel, Field
 
 
 class SearchHit(BaseModel):
+    # Stable ingestion id (`{source}:{source_id}`). Null until that field is set.
+    listing_id: Optional[str] = None
+    # Pipeline id. Opens the existing /deals/{deal_id} page.
     deal_id: str
     title: str
     price: float
@@ -16,6 +19,8 @@ class SearchHit(BaseModel):
     model: Optional[str] = None
     mileage: Optional[int] = None
     location: Optional[str] = None
+    region: Optional[str] = None
+    zip: Optional[str] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
     geo_source: Optional[Literal["listing", "fixture_gazetteer"]] = None

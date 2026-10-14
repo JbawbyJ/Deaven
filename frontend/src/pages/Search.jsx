@@ -18,6 +18,8 @@ const FILTER_KEYS = [
   'price_min',
   'price_max',
   'mileage_max',
+  'region',
+  'zip',
 ];
 
 function readFilters(params) {
@@ -32,6 +34,8 @@ function readFilters(params) {
     price_min: params.get('price_min') || '',
     price_max: params.get('price_max') || '',
     mileage_max: params.get('mileage_max') || '',
+    region: params.get('region') || '',
+    zip: params.get('zip') || '',
   };
 }
 
@@ -93,6 +97,8 @@ export default function Search() {
             price_min: '',
             price_max: '',
             mileage_max: '',
+            region: '',
+            zip: '',
           })
         }
       />
@@ -116,9 +122,10 @@ export default function Search() {
           )}
           {listings.map((listing) => {
             const distance = formatDistance(listing.distance_miles);
+            const place = listing.location || listing.region || 'Location unknown';
             return (
               <Link
-                key={listing.deal_id}
+                key={listing.listing_id || listing.deal_id}
                 to={`/deals/${listing.deal_id}`}
                 className="group panel block p-4 transition-colors hover:border-deaven-gold/30"
               >
@@ -133,10 +140,14 @@ export default function Search() {
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-zinc-500">
                       <span className="inline-flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
-                        {listing.location || 'Location unknown'}
+                        {place}
+                        {listing.zip ? ` · ${listing.zip}` : ''}
                         {distance ? ` · ${distance}` : ''}
                       </span>
                       {listing.mileage != null && <span>{formatMileage(listing.mileage)}</span>}
+                      {listing.listing_id && (
+                        <span className="font-mono">{listing.listing_id}</span>
+                      )}
                       {listing.geo_source === 'fixture_gazetteer' && <span>Fixture pin</span>}
                     </p>
                   </div>

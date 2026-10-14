@@ -1,14 +1,15 @@
 """
 Thin adapter from a stored deal to a search hit.
 
-Deals on main are DealPayload (shared.schemas.deal.ListingData): title, price,
-mileage, year, make, model, and a free-text location. Builder is publishing
-the listing schema on agent/builder/deaven-ingestion. That branch is not on
-main yet. When it lands, update this module only.
+Reads ListingData as extended on agent/builder/deaven-ingestion (PR #3):
+`listing_id` (`{source}:{source_id}`), `region`, and `zip`, plus the existing
+display `location`. `listing_id` is the stable id. `deal_id` stays the
+pipeline id so the current deal page still opens. Older rows leave
+`listing_id` null.
 
-Coordinates are read from the listing when present (latitude/longitude,
-lat/lng, or lat/lon). Otherwise the location string is resolved with the
-fixture gazetteer.
+TODO(builder-lat-lng): remove the fixture gazetteer once ListingData stores
+latitude/longitude. Coordinates already pass through when present and win
+over the gazetteer.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ def to_hit(payload: Any, center: Optional[tuple[float, float]] = None) -> Search
         distance = round(haversine_miles(center[0], center[1], lat, lng), 1)
 
     return SearchHit(
+        listing_id=_text(listing, "listing_id"),
         deal_id=str(payload.deal_id),
         title=_text(listing, "title") or "Untitled",
         price=float(_field(listing, "price") or 0),
@@ -38,6 +40,8 @@ def to_hit(payload: Any, center: Optional[tuple[float, float]] = None) -> Search
         model=_text(listing, "model"),
         mileage=_optional_int(_field(listing, "mileage")),
         location=_text(listing, "location"),
+        region=_region(_text(listing, "region")),
+        zip=_text(listing, "zip"),
         lat=lat,
         lng=lng,
         geo_source=geo_source,
@@ -52,11 +56,20 @@ def _coordinates(listing: Any) -> tuple[Optional[float], Optional[float], Option
     lng = _optional_float(_field(listing, *_LNG_FIELDS))
     if lat is not None and lng is not None:
         return lat, lng, "listing"
+    # TODO(builder-lat-lng): delete this gazetteer fallback once lat/lng is on ListingData.
     resolved = resolve_place(_text(listing, "location"))
     if resolved is None:
         return None, None, None
     _label, place_lat, place_lng, _how = resolved
     return place_lat, place_lng, "fixture_gazetteer"
+
+
+def _region(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    if len(value) == 2 and value.isalpha():
+        return value.upper()
+    return value
 
 
 def _field(listing: Any, *names: str) -> Any:

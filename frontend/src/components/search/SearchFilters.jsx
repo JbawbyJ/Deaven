@@ -36,7 +36,7 @@ export default function SearchFilters({ filters, places, onApply, onClear }) {
             className="input-dark"
             list="deaven-places"
             value={draft.location}
-            placeholder="City, or lat,lng"
+            placeholder="City, ZIP, region, or lat,lng"
             onChange={(event) => set('location', event.target.value)}
           />
           <datalist id="deaven-places">
@@ -110,6 +110,22 @@ export default function SearchFilters({ filters, places, onApply, onClear }) {
             inputMode="numeric"
             value={draft.mileage_max}
             onChange={(event) => set('mileage_max', event.target.value)}
+          />
+        </Field>
+        <Field label="Region">
+          <input
+            className="input-dark"
+            value={draft.region}
+            placeholder="TX"
+            onChange={(event) => set('region', event.target.value)}
+          />
+        </Field>
+        <Field label="ZIP">
+          <input
+            className="input-dark"
+            value={draft.zip}
+            placeholder="78701"
+            onChange={(event) => set('zip', event.target.value)}
           />
         </Field>
       </div>
