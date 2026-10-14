@@ -1,0 +1,6 @@
+User-agent: DeavenListingBot
+Disallow: /private/
+Allow: /listing/
+
+User-agent: *
+Disallow: /

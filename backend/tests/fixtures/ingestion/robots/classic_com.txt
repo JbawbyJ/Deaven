@@ -1,0 +1,6 @@
+User-agent: DeavenListingBot
+Disallow: /account/
+Allow: /veh/
+
+User-agent: *
+Disallow: /
