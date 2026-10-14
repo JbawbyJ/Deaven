@@ -109,6 +109,22 @@ def estimate_value(
     )
 
 
+def matched_adjusted_prices(
+    subject: ListingFacts,
+    comps: list[ListingFacts],
+    *,
+    min_comps: int = MIN_COMPS,
+    mileage_rate: float = MILEAGE_RATE_PER_10K,
+    age_rate: float = AGE_RATE_PER_YEAR,
+) -> tuple[list[ListingFacts], list[float], str]:
+    """Same cohort and adjustments as estimate_value, with the adjusted prices kept."""
+    matched, cohort = _select_cohort(subject, comps, min_comps)
+    if not matched:
+        return [], [], "none"
+    adjusted = [_adjust(subject, comp, mileage_rate, age_rate) for comp in matched]
+    return matched, adjusted, cohort
+
+
 def rate_deal(
     price: float,
     estimate: float | None,

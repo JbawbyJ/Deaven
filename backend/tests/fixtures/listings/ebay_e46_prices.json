@@ -1,0 +1,16 @@
+[
+  {
+    "listing_id": "873b796649b684da",
+    "observed_at": "2026-07-18T00:00:00Z",
+    "amount": 33900,
+    "currency": "USD",
+    "kind": "asking"
+  },
+  {
+    "listing_id": "873b796649b684da",
+    "observed_at": "2026-07-20T00:00:00Z",
+    "amount": 32950,
+    "currency": "USD",
+    "kind": "asking"
+  }
+]
