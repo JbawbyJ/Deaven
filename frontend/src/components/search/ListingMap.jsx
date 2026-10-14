@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../../lib/formatters';
+import { isListingSelected, listingKey } from '../../lib/searchSort';
 
 const EMPTY_BOUNDS = { north: 49, south: 25, west: -125, east: -67 };
 
@@ -38,9 +39,19 @@ function project(lat, lng, bounds) {
   return { left: `${x}%`, top: `${y}%` };
 }
 
-export default function ListingMap({ listings, center, radiusMiles, className = '' }) {
+export default function ListingMap({
+  listings,
+  center,
+  radiusMiles,
+  selectedKey = null,
+  hoveredKey = null,
+  onSelect,
+  onHover,
+  className = '',
+}) {
   const mappable = listings.filter((item) => item.lat != null && item.lng != null);
   const bounds = computeBounds(mappable, center, radiusMiles);
+  const selected = listings.find((item) => isListingSelected(selectedKey, item)) ?? null;
 
   let ring = null;
   if (center && radiusMiles) {
@@ -86,17 +97,46 @@ export default function ListingMap({ listings, center, radiusMiles, className = 
       </svg>
 
       {mappable.map((listing) => {
+        const key = listingKey(listing);
         const point = project(listing.lat, listing.lng, bounds);
+        const selectedPin = isListingSelected(selectedKey, listing);
+        const hoveredPin = hoveredKey === key && !selectedPin;
         return (
-          <Link
-            key={listing.listing_id || listing.deal_id}
-            to={`/deals/${listing.deal_id}`}
+          <button
+            key={key}
+            type="button"
             title={`${listing.title} · ${formatPrice(listing.price)}`}
-            className="absolute z-10 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-deaven-gold shadow-[0_0_0_3px_rgba(201,168,76,0.35)]"
+            aria-label={`${listing.title}, ${formatPrice(listing.price)}`}
+            aria-pressed={selectedPin}
+            onClick={() => onSelect?.(listing)}
+            onMouseEnter={() => onHover?.(key)}
+            onMouseLeave={() => onHover?.(null)}
+            className={[
+              'absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-deaven-gold',
+              selectedPin
+                ? 'z-20 h-5 w-5 shadow-[0_0_0_4px_rgba(201,168,76,0.55)]'
+                : hoveredPin
+                  ? 'z-10 h-4 w-4 shadow-[0_0_0_3px_rgba(201,168,76,0.45)]'
+                  : 'z-10 h-3.5 w-3.5 shadow-[0_0_0_3px_rgba(201,168,76,0.35)]',
+            ].join(' ')}
             style={point}
           />
         );
       })}
+
+      {selected && (
+        <div className="absolute left-2 right-2 top-2 z-30 flex items-center justify-between gap-2 rounded-md border border-deaven-gold/40 bg-deaven-surface/95 px-3 py-2">
+          <p className="truncate text-xs text-zinc-100">{selected.title}</p>
+          {selected.deal_id && (
+            <Link
+              to={`/deals/${selected.deal_id}`}
+              className="shrink-0 text-xs font-medium text-deaven-gold hover:underline"
+            >
+              Open deal
+            </Link>
+          )}
+        </div>
+      )}
 
       <p className="pointer-events-none absolute bottom-2 left-2 right-2 text-[11px] text-zinc-500">
         Simple lat/lng projection.
