@@ -69,6 +69,8 @@ def listing_from_catalog(item: dict[str, Any]) -> ListingData:
         model=item.get("model"),
         trim=item.get("trim"),
         location=item.get("location"),
+        region=item.get("region"),
+        zip=item.get("zip"),
         description=item.get("description"),
         seller_type=item.get("seller_type"),
         watch_count=item.get("watch_count"),

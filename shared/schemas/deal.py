@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 import uuid
 
 from shared.vin import VinError, validate_vin
+from shared.zip_centroids import centroid_for_zip
 
 
 # ─── Enums ────────────────────────────────────────────────────────────────────
@@ -80,6 +81,9 @@ class ListingData(BaseModel):
     A present `vin` is stored uppercase and must pass the ISO 3779 check digit.
     `trim_normalized` is always derived from `trim`. `canonical_id` is set
     when records have been merged; it stays empty on a single source row.
+    `lat` and `lng` are optional. Source coordinates are kept. If both are
+    missing and `zip` is in the offline centroid table, those centroids are
+    filled in. Unknown zips leave both null.
     """
 
     title:        str
@@ -100,6 +104,8 @@ class ListingData(BaseModel):
     location:     Optional[str]    = None   # display string, e.g. "Austin, TX"
     region:       Optional[str]    = None   # state/province code
     zip:          Optional[str]    = None
+    lat:          Optional[float]  = Field(default=None, ge=-90, le=90)
+    lng:          Optional[float]  = Field(default=None, ge=-180, le=180)
 
     description:  Optional[str]    = None
     seller_type:  Optional[str]    = None   # "private" | "dealer"
@@ -196,6 +202,7 @@ class ListingData(BaseModel):
             source, source_id = self.listing_id.split(":", 1)
             self.source = source
             self.source_id = source_id
+        _fill_coordinates(self)
         return self
 
 
@@ -223,6 +230,19 @@ def _compose_listing_id(
     if ":" in parsed_source:
         raise ValueError("source must not contain ':'")
     return listing_id
+
+
+def _fill_coordinates(listing: ListingData) -> None:
+    has_lat = listing.lat is not None
+    has_lng = listing.lng is not None
+    if has_lat != has_lng:
+        raise ValueError("lat and lng must be set together")
+    if has_lat or not listing.zip:
+        return
+    found = centroid_for_zip(listing.zip)
+    if found is None:
+        return
+    listing.lat, listing.lng = found
 
 
 # ─── Agent Reports ────────────────────────────────────────────────────────────

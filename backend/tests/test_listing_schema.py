@@ -40,6 +40,8 @@ def test_fixture_populates_the_agreed_fields():
     assert listing.location == "Austin, TX"
     assert listing.region == "TX"
     assert listing.zip == "78701"
+    assert listing.lat == pytest.approx(30.2672)
+    assert listing.lng == pytest.approx(-97.7431)
     assert listing.vin == "1HGCM82633A004352"
     assert listing.trim == "SZ-R"
     assert listing.trim_normalized == "sz r"
@@ -97,6 +99,30 @@ def test_trim_normalized_collapses_punctuation_without_a_vocabulary():
     assert listing.trim_normalized == "ap2"
 
 
+def test_coordinates_use_source_values_or_zip_centroids():
+    pinned = ListingData(title="car", price=1, zip="78701", lat=40.0, lng=-105.0)
+    assert pinned.lat == 40.0
+    assert pinned.lng == -105.0
+
+    unknown = ListingData(title="car", price=1, zip="00000")
+    assert unknown.lat is None
+    assert unknown.lng is None
+
+    plus4 = ListingData(title="car", price=1, zip="78701-1234")
+    assert plus4.lat == pytest.approx(30.2672)
+    assert plus4.lng == pytest.approx(-97.7431)
+
+    bare = ListingData(title="car", price=1)
+    assert bare.lat is None and bare.lng is None
+
+    with pytest.raises(ValidationError):
+        ListingData(title="car", price=1, lat=91, lng=0)
+    with pytest.raises(ValidationError):
+        ListingData(title="car", price=1, lat=0, lng=181)
+    with pytest.raises(ValidationError, match="together"):
+        ListingData(title="car", price=1, lat=30.0)
+
+
 def test_catalog_and_deal_payload_stay_compatible():
     from backend.agents.local_pipeline import listing_from_catalog
     from backend.data.catalog import CATALOG
@@ -107,6 +133,8 @@ def test_catalog_and_deal_payload_stay_compatible():
     assert listing.location == "Austin, TX"
     assert listing.trim_normalized == "coupe"
     assert listing.listing_id is None
+    assert listing.lat == pytest.approx(30.2672)
+    assert listing.lng == pytest.approx(-97.7431)
 
     payload = DealPayload(source=DealSource.EBAY, url="https://example.com/itm/1", listing=listing)
     restored = DealPayload.model_validate(payload.model_dump(mode="json"))
