@@ -1,6 +1,10 @@
 """
 backend/agents/scrapers/ebay.py
-eBay Motors scraper via the Finding API (App ID auth, no OAuth).
+
+Legacy Finding API client. That API is retired. Ingestion uses
+backend.ingestion.ebay_browse.EbayBrowseAdapter with EBAY_CLIENT_ID and
+EBAY_CLIENT_SECRET. This module remains so an opt-in live scout import
+still resolves; it still reads the deprecated EBAY_APP_ID.
 """
 
 from __future__ import annotations
