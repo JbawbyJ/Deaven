@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import urllib.request
 from datetime import datetime, timezone
@@ -10,18 +11,21 @@ from pathlib import Path
 import pytest
 
 import backend.agents.ingestion.dedupe as dedupe_mod
-from backend.agents.ingestion import bat, classic_com, ebay, tcv
+import backend.agents.ingestion.ebay_browse as ebay_browse
+from backend.agents.ingestion import bat, classic_com, ebay, live_fetch_policies, tcv
 from backend.agents.ingestion.dedupe import dedupe
+from backend.agents.ingestion.ebay_browse import MissingEbayCredentials, fetch_search, parse_browse_payload
 from backend.agents.ingestion.extract import KM_TO_MILES
-from backend.agents.ingestion.policy import RobotsDenied, robots_allowed
+from backend.agents.ingestion.policy import LiveFetchBlocked, RateLimiter, RobotsDenied, begin_live_fetch, robots_allowed
 from shared.schemas.listing import ListingLocation, MatchMethod, NormalizedListing, SellerType, build_provenance
 from shared.schemas.market import PriceKind, PriceObservation, vehicle_key, vehicle_key_for
 from shared.vin import vin_key
 
 ROOT = Path(__file__).resolve().parents[2]
 LISTINGS = ROOT / "shared" / "fixtures" / "listings"
-HTML = Path(__file__).resolve().parent / "fixtures" / "ingestion" / "html"
-ROBOTS = Path(__file__).resolve().parent / "fixtures" / "ingestion" / "robots"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "ingestion"
+HTML = FIXTURES / "html"
+ROBOTS = FIXTURES / "robots"
 VIN = "1HGCM82633A004352"
 
 
@@ -292,3 +296,126 @@ def test_rate_limiters_do_not_share_a_clock():
 def test_naive_timestamp_is_rejected():
     with pytest.raises(ValueError, match="timezone-aware"):
         ebay.parse("<html></html>", fetched_at=datetime(2026, 7, 20))
+
+
+def test_terms_keep_html_sources_parser_only():
+    expected = {
+        bat: (
+            "https://bringatrailer.com/terms-of-use/",
+            "software robots, spider, crawlers",
+        ),
+        classic_com: (
+            "https://www.classic.com/about/terms-conditions/",
+            "express prior written consent",
+        ),
+        ebay: (
+            "https://www.ebay.com.au/help/policies/member-behaviour-policies/user-agreement?id=4259",
+            "robot, spider, scraper",
+        ),
+        tcv: (
+            "https://www.tc-v.com/about/termsofuse/",
+            "Article 11.1.11",
+        ),
+    }
+    for adapter, (url, clause) in expected.items():
+        assert adapter.LIVE_FETCH_ALLOWED is False
+        assert adapter.POLICY.live_fetch_allowed is False
+        assert adapter.POLICY.review_status == "pending RJ decision"
+        assert adapter.POLICY.tos_url == url
+        assert url in adapter.POLICY.tos_note
+        assert clause in adapter.POLICY.tos_note
+        assert "pending RJ decision" in adapter.POLICY.tos_note
+        clock = FakeClock()
+        limiter = adapter.limiter(clock=clock.now, sleep=clock.sleep)
+        with pytest.raises(LiveFetchBlocked):
+            begin_live_fetch(adapter.POLICY, "User-agent: *\nDisallow:\n", "https://example.invalid/item", limiter)
+        assert clock.slept == []
+
+
+def test_live_fetch_list_is_the_browse_api():
+    policies = live_fetch_policies()
+    assert policies == [ebay_browse.POLICY]
+    assert ebay_browse.LIVE_FETCH_ALLOWED is True
+    assert ebay_browse.POLICY.review_status == "official Browse API"
+    assert ebay.POLICY not in policies
+    clock = FakeClock()
+    limiter = RateLimiter(ebay_browse.POLICY.min_interval_seconds, clock=clock.now, sleep=clock.sleep)
+    robots = "User-agent: *\nDisallow:\n"
+    url = "https://api.ebay.com/buy/browse/v1/item_summary/search"
+    begin_live_fetch(ebay_browse.POLICY, robots, url, limiter)
+    begin_live_fetch(ebay_browse.POLICY, robots, url, limiter)
+    assert clock.slept == [ebay_browse.POLICY.min_interval_seconds]
+
+
+def test_browse_recorded_json_maps_the_ebay_fixture():
+    item = json.loads((FIXTURES / "ebay_browse_item.json").read_text())
+    fetched_at = _fetched_at("ebay_e46.json")
+    fixture = _load_listing("ebay_e46.json")
+    page = parse_browse_payload(item, fetched_at=fetched_at)
+    wrapped = parse_browse_payload({"itemSummaries": [item], "total": 1}, fetched_at=fetched_at)
+    assert len(page.listings) == 1
+    listing = page.listings[0]
+    assert wrapped.listings[0].observation_id == listing.observation_id
+    assert listing.observation_id == fixture.observation_id
+    assert listing.vin == fixture.vin == VIN
+    assert listing.price == 32950
+    assert listing.mileage == 62210
+    assert listing.location.label == "Austin, TX 78701"
+    assert listing.currency == "USD"
+    assert listing.source_url == fixture.source_url
+    assert vehicle_key(listing) == VIN
+    assert page.prices[0].kind is PriceKind.ASKING
+    assert page.prices[0].amount == 32950
+    assert page.prices[0].listing_id == listing.observation_id
+    empty = parse_browse_payload({"itemSummaries": [{"title": "2003 BMW M3"}]}, fetched_at=fetched_at)
+    assert empty.listings == []
+
+
+def test_browse_fetch_uses_a_mocked_transport(monkeypatch):
+    monkeypatch.delenv("EBAY_CLIENT_ID", raising=False)
+    monkeypatch.delenv("EBAY_CLIENT_SECRET", raising=False)
+    fetched_at = datetime(2026, 7, 20, tzinfo=timezone.utc)
+
+    def refused(*args, **kwargs):
+        raise AssertionError("transport must not run without credentials")
+
+    with pytest.raises(MissingEbayCredentials):
+        fetch_search("2003 BMW M3", fetched_at=fetched_at, transport=refused)
+
+    monkeypatch.setenv("EBAY_CLIENT_ID", "deaven-test-client")
+    monkeypatch.setenv("EBAY_CLIENT_SECRET", "deaven-test-secret")
+    item = json.loads((FIXTURES / "ebay_browse_item.json").read_text())
+    calls: list[dict] = []
+
+    def transport(method, url, *, headers, body=None, params=None):
+        calls.append({"method": method, "url": url, "headers": headers, "body": body, "params": params})
+        if url == ebay_browse.TOKEN_URL:
+            return {"access_token": "recorded-token", "expires_in": 7200, "token_type": "Application Access Token"}
+        return {"itemSummaries": [item]}
+
+    page = fetch_search("2003 BMW M3", fetched_at=fetched_at, transport=transport)
+    assert len(calls) == 2
+    token_call, search_call = calls
+    decoded = base64.b64decode(token_call["headers"]["Authorization"].split()[1]).decode()
+    assert decoded == "deaven-test-client:deaven-test-secret"
+    assert token_call["method"] == "POST"
+    assert token_call["url"] == ebay_browse.TOKEN_URL
+    assert "client_credentials" in token_call["body"]
+    assert search_call["headers"]["Authorization"] == "Bearer recorded-token"
+    assert search_call["headers"]["X-EBAY-C-MARKETPLACE-ID"] == "EBAY_MOTORS"
+    assert search_call["url"] == ebay_browse.SEARCH_URL
+    assert search_call["params"]["category_ids"] == "6001"
+    assert page.listings[0].vin == VIN
+    source = Path(ebay_browse.__file__).read_text()
+    assert "deaven-test-client" not in source
+    assert "deaven-test-secret" not in source
+
+
+def test_env_example_names_ebay_credentials_without_values():
+    text = (ROOT / "backend" / ".env.example").read_text()
+    named = [
+        line
+        for line in text.splitlines()
+        if line.startswith("EBAY_CLIENT_ID=") or line.startswith("EBAY_CLIENT_SECRET=")
+    ]
+    assert named == ["EBAY_CLIENT_ID=", "EBAY_CLIENT_SECRET="]

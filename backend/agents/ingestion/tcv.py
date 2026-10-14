@@ -19,13 +19,19 @@ from backend.agents.ingestion.policy import (
     authorize as authorize_policy,
 )
 
+TOS_URL = "https://www.tc-v.com/about/termsofuse/"
 TOS_NOTE = (
-    "tc-v.com's terms restrict automated collection of export stock. "
-    "This adapter parses saved HTML only, uses no credentials, and does not call an FX or Anthropic API. "
+    "Verdict: gathering Service information by a method other than TCV's is barred, including for commercial use. "
+    "Parser-only. Status: pending RJ decision. "
+    f"Terms: {TOS_URL} "
+    "Clause (Article 11.1.11): \"using, gathering, or processing the information provided in the Service "
+    "by a method other than the method provided by TCV, whether legal or illegal, and whether or not it "
+    "infringes upon rights, or using the Service by a method other than the method provided by TCV, for "
+    "profit or for commercial purposes.\" "
+    "tc-v.com HTML is parsed from saved fixtures only. This adapter uses no credentials and does not call an FX or Anthropic API. "
     "The asking price stays in the currency printed on the page, so JPY is not converted. "
     "Kilometer odometers are stored as miles on the listing; the raw kilometer figure stays in provenance. "
-    "A live fetch has to be allowed by robots.txt for DeavenListingBot and then wait on this source's rate limiter. "
-    "The shared Source catalog leaves robots_ok and tos_reviewed false; this note is not a live-crawl sign-off."
+    "It is not on the live fetch list."
 )
 
 POLICY = SourcePolicy(
@@ -33,7 +39,11 @@ POLICY = SourcePolicy(
     user_agent=USER_AGENT,
     min_interval_seconds=5.0,
     tos_note=TOS_NOTE,
+    tos_url=TOS_URL,
+    live_fetch_allowed=False,
+    review_status="pending RJ decision",
 )
+LIVE_FETCH_ALLOWED = POLICY.live_fetch_allowed
 
 
 def parse(html: str, *, fetched_at: datetime) -> ParsedPage:

@@ -1,0 +1,20 @@
+{
+  "itemId": "v1|deaven-demo-2003-bmw-m3|0",
+  "title": "2003 BMW M3 Coupe",
+  "price": {"value": "32950.00", "currency": "USD"},
+  "itemWebUrl": "https://www.ebay.com/itm/deaven-demo-2003-bmw-m3",
+  "image": {"imageUrl": "https://img.example/ebay-m3.jpg"},
+  "itemLocation": {
+    "city": "Austin",
+    "stateOrProvince": "TX",
+    "postalCode": "78701",
+    "country": "US"
+  },
+  "itemCreationDate": "2026-07-18T00:00:00.000Z",
+  "itemEndDate": "2026-07-20T00:00:00.000Z",
+  "localizedAspects": [
+    {"type": "STRING", "name": "VIN", "value": "1hg-cm82633-a004352"},
+    {"type": "STRING", "name": "Mileage", "value": "62,210 miles"},
+    {"type": "STRING", "name": "Trim", "value": "Coupe"}
+  ]
+}

@@ -1,4 +1,7 @@
-"""eBay recorded-HTML adapter. No Finding API call and no EBAY_APP_ID."""
+"""eBay recorded-HTML parser. Scraping is barred, so this path is fixtures only.
+
+Live reads go through backend.agents.ingestion.ebay_browse (the Browse API).
+"""
 
 from __future__ import annotations
 
@@ -14,12 +17,17 @@ from backend.agents.ingestion.policy import (
     authorize as authorize_policy,
 )
 
+TOS_URL = "https://www.ebay.com.au/help/policies/member-behaviour-policies/user-agreement?id=4259"
 TOS_NOTE = (
-    "eBay's User Agreement and robots.txt limit automated access. "
-    "This adapter does not call the Finding API and does not read EBAY_APP_ID or any other credential. "
-    "It parses saved listing HTML only. A live fetch has to be allowed by robots.txt for DeavenListingBot "
-    "and then wait on this source's rate limiter. "
-    "The shared Source catalog leaves robots_ok and tos_reviewed false; this note is not a live-crawl sign-off."
+    "Verdict: the User Agreement bars scraping. HTML is parser-only. Status: pending RJ decision "
+    "for any HTML crawl. Live reads use the official Browse API instead. "
+    f"Terms: {TOS_URL} "
+    "(same agreement id 4259; the US help URL returned 403 when this clause was checked). "
+    "Section 15: \"You agree that you will not use any robot, spider, scraper or other automated means "
+    "to access the eBay services for any purpose without our express written permission.\" "
+    "This HTML parser reads saved fixtures only. It does not call the Finding API and does not read "
+    "EBAY_APP_ID, EBAY_CLIENT_ID, EBAY_CLIENT_SECRET, or any other credential. "
+    "It is not on the live fetch list."
 )
 
 POLICY = SourcePolicy(
@@ -27,7 +35,11 @@ POLICY = SourcePolicy(
     user_agent=USER_AGENT,
     min_interval_seconds=3.0,
     tos_note=TOS_NOTE,
+    tos_url=TOS_URL,
+    live_fetch_allowed=False,
+    review_status="pending RJ decision",
 )
+LIVE_FETCH_ALLOWED = POLICY.live_fetch_allowed
 
 
 def parse(html: str, *, fetched_at: datetime) -> ParsedPage:

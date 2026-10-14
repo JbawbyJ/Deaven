@@ -14,11 +14,15 @@ from backend.agents.ingestion.policy import (
     authorize as authorize_policy,
 )
 
+TOS_URL = "https://bringatrailer.com/terms-of-use/"
 TOS_NOTE = (
-    "Bring a Trailer's terms restrict automated collection and republication of auction content. "
-    "This adapter parses saved listing HTML only. It does not log in and does not read credentials. "
-    "A live fetch has to be allowed by robots.txt for DeavenListingBot and then wait on this source's rate limiter. "
-    "The shared Source catalog leaves robots_ok and tos_reviewed false; this note is not a live-crawl sign-off."
+    "Verdict: scraping and automated access are barred. Parser-only. Status: pending RJ decision. "
+    f"Terms: {TOS_URL} "
+    "Clause: \"You may also not use any software robots, spider, crawlers, or other data gathering "
+    "or extraction tools, whether automated or manual, to access, acquire, copy, monitor, scrape or "
+    "aggregate the BaT Services, Content or any portion thereof.\" "
+    "Bring a Trailer HTML is parsed from saved fixtures only. This adapter does not log in and does not read credentials. "
+    "It is not on the live fetch list."
 )
 
 POLICY = SourcePolicy(
@@ -26,7 +30,11 @@ POLICY = SourcePolicy(
     user_agent=USER_AGENT,
     min_interval_seconds=8.0,
     tos_note=TOS_NOTE,
+    tos_url=TOS_URL,
+    live_fetch_allowed=False,
+    review_status="pending RJ decision",
 )
+LIVE_FETCH_ALLOWED = POLICY.live_fetch_allowed
 
 
 def parse(html: str, *, fetched_at: datetime) -> ParsedPage:

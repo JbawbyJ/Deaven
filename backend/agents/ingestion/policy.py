@@ -22,6 +22,9 @@ class SourcePolicy:
     user_agent: str
     min_interval_seconds: float
     tos_note: str
+    tos_url: str
+    live_fetch_allowed: bool = False
+    review_status: str = "pending RJ decision"
 
     @property
     def source(self) -> Source:
@@ -38,6 +41,14 @@ class RobotsDenied(PermissionError):
         self.source = source
         self.url = url
         super().__init__(f"{source} robots.txt disallows {url}")
+
+
+class LiveFetchBlocked(PermissionError):
+    """Terms bar a live fetch. The source stays parser-only until RJ decides."""
+
+    def __init__(self, source: str) -> None:
+        self.source = source
+        super().__init__(f"{source} live fetch is off (pending RJ decision)")
 
 
 def robots_allowed(robots_txt: str, user_agent: str, url: str) -> bool:
@@ -79,3 +90,10 @@ def authorize(policy: SourcePolicy, robots_txt: str, url: str, limiter: RateLimi
     if not robots_allowed(robots_txt, policy.user_agent, url):
         raise RobotsDenied(policy.code.value, url)
     limiter.acquire()
+
+
+def begin_live_fetch(policy: SourcePolicy, robots_txt: str, url: str, limiter: RateLimiter) -> None:
+    """Robots and rate-limit gate. Parser-only sources never reach it."""
+    if not policy.live_fetch_allowed:
+        raise LiveFetchBlocked(policy.code.value)
+    authorize(policy, robots_txt, url, limiter)

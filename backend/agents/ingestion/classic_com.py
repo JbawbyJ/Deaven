@@ -14,11 +14,17 @@ from backend.agents.ingestion.policy import (
     authorize as authorize_policy,
 )
 
+TOS_URL = "https://www.classic.com/about/terms-conditions/"
 TOS_NOTE = (
-    "classic.com's terms restrict scraping and automated access; the site also sits behind a bot check. "
-    "This adapter parses saved listing HTML only, uses no credentials, and does not bypass that check. "
-    "A live fetch has to be allowed by robots.txt for DeavenListingBot and then wait on this source's rate limiter. "
-    "The shared Source catalog leaves robots_ok and tos_reviewed false; this note is not a live-crawl sign-off."
+    "Verdict: scraping and automated access are barred without prior written consent. Parser-only. "
+    "Status: pending RJ decision. "
+    f"Terms: {TOS_URL} "
+    "Clause: \"Use any robot, spider, site search/retrieval application or other manual or automatic "
+    "devices to retrieve, index, “scrape,” “data mine” or otherwise gather any Content, or reproduce "
+    "or circumvent the navigational structure or presentation of the Services, without CLASSIC.COM’s "
+    "express prior written consent.\" "
+    "classic.com HTML is parsed from saved fixtures only. This adapter uses no credentials and does not bypass the bot check. "
+    "It is not on the live fetch list."
 )
 
 POLICY = SourcePolicy(
@@ -26,7 +32,11 @@ POLICY = SourcePolicy(
     user_agent=USER_AGENT,
     min_interval_seconds=6.0,
     tos_note=TOS_NOTE,
+    tos_url=TOS_URL,
+    live_fetch_allowed=False,
+    review_status="pending RJ decision",
 )
+LIVE_FETCH_ALLOWED = POLICY.live_fetch_allowed
 
 
 def parse(html: str, *, fetched_at: datetime) -> ParsedPage:
