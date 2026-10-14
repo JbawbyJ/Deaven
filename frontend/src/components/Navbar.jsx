@@ -6,6 +6,7 @@ import { ingestURL } from '../lib/api';
 
 const NAV = [
   { to: '/', label: 'Feed' },
+  { to: '/search', label: 'Search' },
   { to: '/watchlist', label: 'Watchlist' },
   { to: '/pipeline', label: 'Pipeline' },
 ];

@@ -34,6 +34,7 @@ from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from backend.api.search_routes import router as search_router
 from backend.core.settings import (
     alert_webhook_url,
     cors_origins,
@@ -97,6 +98,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Area search (Builder 3). Additive; does not change the deals feed contract.
+app.include_router(search_router)
 
 
 # ─── Request/Response Models ──────────────────────────────────────────────────
