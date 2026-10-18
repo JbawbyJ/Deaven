@@ -13,6 +13,7 @@ Contract matches `Deaven API - Swagger UI.pdf`:
   DELETE /watchlists/{filter_id}
   GET  /stats/pipeline
   POST /scout/run
+  GET  /api/listings/search   (fixture search for the map UI)
 """
 
 from __future__ import annotations
@@ -53,6 +54,7 @@ from backend.db.client import (
     save_deal,
     save_watchlist,
 )
+from backend.api.listings_search import router as listings_search_router
 from shared.schemas.deal import DealPayload, DealStatus, WatchlistFilter
 
 logger = logging.getLogger(__name__)
@@ -99,6 +101,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(listings_search_router)
 # Area search (Builder 3). Additive; does not change the deals feed contract.
 app.include_router(search_router)
 

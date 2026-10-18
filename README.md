@@ -113,7 +113,7 @@ backend/
 frontend/
   src/
     components/   # DealCard, ScoreBadge, AgentReport
-    pages/        # Dashboard, DealDetail, Watchlist, Pipeline
+    pages/        # Dashboard, Search, DealDetail, Watchlist, Pipeline
     hooks/        # useDeals, useStats
     store/        # Zustand
     lib/          # API client, formatters
