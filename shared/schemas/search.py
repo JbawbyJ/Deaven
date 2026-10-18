@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class SearchHit(BaseModel):
@@ -23,7 +23,6 @@ class SearchHit(BaseModel):
     zip: Optional[str] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
-    geo_source: Optional[Literal["listing", "fixture_gazetteer"]] = None
     distance_miles: Optional[float] = None
     deal_score: Optional[float] = None
     deal_tier: Optional[str] = None
@@ -33,7 +32,6 @@ class SearchCenter(BaseModel):
     lat: float
     lng: float
     label: str
-    resolved_by: Literal["coordinates", "fixture_gazetteer"]
 
 
 class SearchResponse(BaseModel):
@@ -41,16 +39,5 @@ class SearchResponse(BaseModel):
     radius_miles: Optional[float] = None
     total: int
     listings: list[SearchHit]
+    without_coordinates: int = 0
     note: str
-
-
-class PlaceOption(BaseModel):
-    label: str
-    lat: float
-    lng: float
-
-
-class PlacesResponse(BaseModel):
-    source: Literal["fixture_gazetteer"] = "fixture_gazetteer"
-    note: str
-    places: list[PlaceOption] = Field(default_factory=list)

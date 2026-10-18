@@ -10,11 +10,6 @@ export async function searchListings(filters) {
   return data;
 }
 
-export async function getSearchPlaces() {
-  const { data } = await api.get('/search/places');
-  return data;
-}
-
 export function searchErrorMessage(error) {
   const detail = error?.response?.data?.detail;
   if (typeof detail === 'string') return detail;

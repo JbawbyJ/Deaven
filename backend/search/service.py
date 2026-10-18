@@ -7,13 +7,8 @@ from typing import Optional
 
 from backend.db.client import list_deals
 from backend.search.adapter import to_hit
-from backend.search.geo import place_options, resolve_place
+from backend.search.geo import parse_coordinates
 from shared.schemas.search import SearchCenter, SearchHit, SearchResponse
-
-FIXTURE_NOTE = (
-    "Pins use listing coordinates when they exist. "
-    "A fixture city gazetteer is only the fallback for city names."
-)
 
 _ZIP_RE = re.compile(r"^\d{5}(?:-\d{4})?$")
 
@@ -51,10 +46,8 @@ def search_deals(
     hits = [to_hit(deal, center_pair) for deal in list_deals(limit=_MAX_SCAN)]
 
     matched = []
+    without_coordinates = 0
     for hit in hits:
-        if center is not None:
-            if hit.distance_miles is None or hit.distance_miles > radius_miles:
-                continue
         if not _matches(
             hit,
             make,
@@ -68,6 +61,14 @@ def search_deals(
             zip_filter,
         ):
             continue
+        if hit.lat is None or hit.lng is None:
+            without_coordinates += 1
+            if center is not None:
+                continue
+        elif center is not None and (
+            hit.distance_miles is None or hit.distance_miles > radius_miles
+        ):
+            continue
         matched.append(hit)
 
     matched.sort(key=lambda hit: _sort_key(hit, center is not None))
@@ -76,26 +77,26 @@ def search_deals(
         radius_miles=radius_miles if center is not None else None,
         total=len(matched),
         listings=matched[:limit],
-        note=FIXTURE_NOTE,
+        without_coordinates=without_coordinates,
+        note=_note(center is not None, without_coordinates),
     )
-
-
-def places() -> list[dict]:
-    return place_options()
 
 
 def _read_location(location: Optional[str]) -> tuple[Optional[str], Optional[str], Optional[str]]:
     """Split the location box into a geo query, a region, or a ZIP.
 
-    A 5-digit ZIP (or ZIP+4) matches `listing.zip`. A 2-letter code that is
-    not a fixture city matches `listing.region`. Anything else is a place name.
+    A 5-digit ZIP (or ZIP+4) matches `listing.zip`. A 2-letter code matches
+    `listing.region`. A lat,lng pair is the search center. City names are not
+    geocoded.
     """
     if location is None or not str(location).strip():
         return None, None, None
     text = str(location).strip()
     if _ZIP_RE.fullmatch(text):
         return None, None, text
-    if re.fullmatch(r"[A-Za-z]{2}", text) and resolve_place(text) is None:
+    if parse_coordinates(text) is not None:
+        return text, None, None
+    if re.fullmatch(r"[A-Za-z]{2}", text):
         return None, text.upper(), None
     return text, None, None
 
@@ -109,14 +110,27 @@ def _center(
         if lat is None or lng is None or not (-90 <= lat <= 90 and -180 <= lng <= 180):
             raise UnresolvedLocation(location or "lat/lng")
         label = location.strip() if location and location.strip() else f"{lat:.4f}, {lng:.4f}"
-        return SearchCenter(lat=lat, lng=lng, label=label, resolved_by="coordinates")
+        return SearchCenter(lat=lat, lng=lng, label=label)
     if location is None or not location.strip():
         return None
-    resolved = resolve_place(location)
-    if resolved is None:
+    parsed = parse_coordinates(location)
+    if parsed is None:
         raise UnresolvedLocation(location.strip())
-    label, place_lat, place_lng, resolved_by = resolved
-    return SearchCenter(lat=place_lat, lng=place_lng, label=label, resolved_by=resolved_by)
+    lat, lng = parsed
+    return SearchCenter(lat=lat, lng=lng, label=f"{lat:.4f}, {lng:.4f}")
+
+
+def _note(has_center: bool, without_coordinates: int) -> str:
+    if without_coordinates and has_center:
+        label = "listing" if without_coordinates == 1 else "listings"
+        return (
+            f"{without_coordinates} {label} had no coordinates and "
+            "were left out of this radius."
+        )
+    if without_coordinates:
+        label = "listing" if without_coordinates == 1 else "listings"
+        return f"{without_coordinates} {label} had no coordinates and are not on the map."
+    return "Pins use each listing's coordinates."
 
 
 def _matches(
