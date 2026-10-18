@@ -93,7 +93,8 @@ Optional later:
 |---|---|
 | `SUPABASE_URL` / `SUPABASE_KEY` | `STORE_BACKEND=supabase` |
 | `ANTHROPIC_API_KEY` | LLM narratives / vision (`PIPELINE_MODE=full`) |
-| `EBAY_APP_ID` | Live eBay Finding API scout |
+| `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` | Browse API ingestion (OAuth client credentials) |
+| `EBAY_APP_ID` | Deprecated. Finding API is retired |
 | `FIRECRAWL_API_KEY`, `CARFAX_API_KEY`, Twilio, Resend | Live scrape / title / alerts |
 
 `pip install -r backend/requirements-full.txt` pulls the heavier target stack. Do not install it for the local walkthrough.
@@ -136,4 +137,4 @@ shared/
 
 ## Swapping the stub scout
 
-`backend/agents/scout.py` already has the live scraper map. Set `SCOUT_BACKEND=live` (and install `requirements-full.txt` plus source keys) to use BaT/eBay/Classic.com/TCV. eBay Finding keywords for the seeded BMW M3 2001–2006 hunt include **E46**. BaT / Classic.com / TCV failures are isolated — one source cannot fail the cycle. No Cloudflare stealth. The dashboard and `/deals*` contract do not change.
+`backend/agents/scout.py` already has the live scraper map. Set `SCOUT_BACKEND=live` (and install `requirements-full.txt` plus source keys) to use BaT/eBay/Classic.com/TCV. eBay scout keywords for the seeded BMW M3 2001–2006 hunt include **E46**. The Finding API client in that scout is retired; ingestion uses the Browse API adapter. BaT / Classic.com / TCV failures are isolated — one source cannot fail the cycle. No Cloudflare stealth. The dashboard and `/deals*` contract do not change.
