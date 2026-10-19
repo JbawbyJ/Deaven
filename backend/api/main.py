@@ -21,7 +21,7 @@ import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -58,6 +58,11 @@ from shared.schemas.deal import DealPayload, DealStatus, WatchlistFilter
 logger = logging.getLogger(__name__)
 
 last_scout = {"at": None, "filters": 0, "new_listings": 0, "tiers": {}}
+
+
+def _utc_now_iso() -> str:
+    """Naive ISO-8601 UTC, same shape as datetime.utcnow().isoformat()."""
+    return datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
 
 # ─── App Lifecycle ────────────────────────────────────────────────────────────
@@ -145,7 +150,7 @@ class DealSummary(BaseModel):
 async def health():
     return {
         "status": "ok",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": _utc_now_iso(),
         "pipeline_mode": pipeline_mode(),
         "scout_backend": scout_backend(),
         "last_scout": dict(last_scout),
@@ -332,7 +337,7 @@ async def _execute_scout(filters: list[WatchlistFilter]) -> dict:
     tiers = _tier_counts(all_payloads)
     last_scout.update(
         {
-            "at": datetime.utcnow().isoformat(),
+            "at": _utc_now_iso(),
             "filters": len(filters),
             "new_listings": len(all_payloads),
             "tiers": tiers,
